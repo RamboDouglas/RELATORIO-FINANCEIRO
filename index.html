@@ -14,8 +14,13 @@
 
     <style>
         /* Garantia caso o CSS do Tailwind (CDN) não carregue: sem isto os modais
-           e o menu de filtro ficariam permanentemente abertos sobre a página. */
-        .hidden { display: none !important; }
+           e o menu de filtro ficariam permanentemente abertos sobre a página.
+           Restrito a estes elementos de propósito — um `.hidden` global com
+           !important sobrescreveria variantes como `hidden sm:block`. */
+        #data-modal.hidden,
+        #restore-modal.hidden,
+        #filter-dropdown.hidden,
+        #toast.hidden { display: none !important; }
         .highlight-positive { animation: pulse-positive 2s infinite; }
         .highlight-negative { animation: pulse-negative 2s infinite; }
         @keyframes pulse-positive {
@@ -280,7 +285,11 @@
             if (typeof value === 'number') return isFinite(value) ? value : 0;
             if (value === null || value === undefined) return 0;
             let str = String(value).trim().replace(/[^\d,.-]/g, '');
-            if (str.indexOf(',') !== -1) str = str.replace(/\./g, '').replace(',', '.');
+            if (str.indexOf(',') !== -1) {
+                str = str.replace(/\./g, '').replace(',', '.'); // 1.234,56 -> 1234.56
+            } else if ((str.match(/\./g) || []).length > 1) {
+                str = str.replace(/\./g, ''); // 1.234.567 só pode ser separador de milhar
+            }
             const parsed = parseFloat(str);
             return isFinite(parsed) ? parsed : 0;
         }
@@ -319,17 +328,23 @@
             }
 
             let data = initialData;
+            let savedDataValid = false;
             if (savedData) {
                 try {
                     const parsed = JSON.parse(savedData);
-                    if (Array.isArray(parsed)) data = parsed;
-                } catch (err) {
+                    if (Array.isArray(parsed)) {
+                        data = parsed;
+                        savedDataValid = true;
+                    }
+                } catch (err) { /* tratado abaixo */ }
+                if (!savedDataValid) {
                     showToast('Os dados salvos estavam corrompidos; carregando os dados iniciais.', 'error');
                 }
             }
 
             financialData = sortData(data.map(normalizeRecord));
-            if (!savedData) saveData();
+            // Regrava também quando o conteúdo salvo era inválido, para não repetir o erro.
+            if (!savedDataValid) saveData();
         }
 
         const MONTH_MAP = { jan:1, fev:2, mar:3, abr:4, mai:5, maio:5, jun:6, jul:7, ago:8, set:9, out:10, nov:11, dez:12 };
@@ -341,7 +356,8 @@
             const name = (parts[0] || '').trim().toLowerCase().replace(/\./g, '');
             let year = parseInt(parts[1], 10);
             const month = MONTH_MAP[name] || MONTH_MAP[name.slice(0, 3)];
-            if (!month || isNaN(year)) return Number.MAX_SAFE_INTEGER;
+            // typeof: nomes como "constructor" herdam valores do protótipo e voltariam NaN.
+            if (typeof month !== 'number' || isNaN(year)) return Number.MAX_SAFE_INTEGER;
             if (year < 100) year += 2000;
             return year * 12 + month;
         }
