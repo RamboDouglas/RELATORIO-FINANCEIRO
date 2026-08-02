@@ -13,6 +13,14 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
+        /* Garantia caso o CSS do Tailwind (CDN) não carregue: sem isto os modais
+           e o menu de filtro ficariam permanentemente abertos sobre a página.
+           Restrito a estes elementos de propósito — um `.hidden` global com
+           !important sobrescreveria variantes como `hidden sm:block`. */
+        #data-modal.hidden,
+        #restore-modal.hidden,
+        #filter-dropdown.hidden,
+        #toast.hidden { display: none !important; }
         .highlight-positive { animation: pulse-positive 2s infinite; }
         .highlight-negative { animation: pulse-negative 2s infinite; }
         @keyframes pulse-positive {
@@ -31,6 +39,19 @@
         .month-tab.active {
             border-bottom-color: #3b82f6;
             color: #2563eb;
+        }
+        /* O input de arquivo precisa continuar "renderizado" (display:none quebra
+           a abertura do seletor em navegadores embutidos do celular). */
+        .visually-hidden-file {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            margin: -1px;
+            padding: 0;
+            border: 0;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            opacity: 0;
         }
     </style>
 </head>
@@ -73,8 +94,8 @@
                     <!-- Botões de Backup (NOVO) -->
                     <div class="h-6 w-px bg-gray-300 mx-1 hidden sm:block"></div>
                     <button onclick="exportBackup()" class="bg-gray-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 flex items-center" title="Baixar Backup"><i class="fas fa-file-export mr-2"></i> Backup</button>
-                    <button onclick="document.getElementById('backup-input').click()" class="bg-gray-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 flex items-center" title="Restaurar Backup"><i class="fas fa-file-import mr-2"></i> Restaurar</button>
-                    <input type="file" id="backup-input" class="hidden" accept=".json" onchange="importBackup(this)">
+                    <label for="backup-input" class="bg-gray-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 flex items-center cursor-pointer" title="Restaurar Backup"><i class="fas fa-file-import mr-2"></i> Restaurar</label>
+                    <input type="file" id="backup-input" class="visually-hidden-file" onchange="importBackup(this)">
                 </div>
             </div>
             <div id="header-stats" class="mt-4 flex flex-wrap gap-2"></div>
@@ -207,6 +228,27 @@
         </div>
     </div>
 
+    <!-- Modal de Restauração de Backup -->
+    <div id="restore-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-16 mx-auto p-5 border w-11/12 max-w-md shadow-lg rounded-md bg-white">
+            <h3 class="text-lg text-center leading-6 font-medium text-gray-900">Restaurar Backup</h3>
+            <p id="restore-summary" class="mt-3 text-sm text-gray-600"></p>
+            <div class="mt-5 space-y-3">
+                <div>
+                    <button onclick="confirmRestore('merge')" class="w-full px-4 py-3 bg-green-600 text-white rounded-md font-medium hover:bg-green-700">Mesclar (recomendado)</button>
+                    <p class="mt-1 text-xs text-gray-500">Mantém os meses que já estão no aparelho, acrescenta os novos e atualiza os repetidos.</p>
+                </div>
+                <div>
+                    <button onclick="confirmRestore('replace')" class="w-full px-4 py-3 bg-red-600 text-white rounded-md font-medium hover:bg-red-700">Substituir tudo</button>
+                    <p class="mt-1 text-xs text-gray-500">Apaga os dados atuais e deixa somente o conteúdo do arquivo.</p>
+                </div>
+                <button onclick="closeRestoreModal()" class="w-full px-4 py-3 bg-gray-200 text-gray-700 rounded-md font-medium hover:bg-gray-300">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Aviso em tela (substitui alert, que é bloqueado em navegadores de apps) -->
+    <div id="toast" class="fixed bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:w-96 sm:-ml-48 z-50 hidden px-4 py-3 rounded-lg shadow-lg text-sm text-white"></div>
 
     <script>
         // #############################################################
@@ -214,7 +256,8 @@
         // #############################################################
         
         let financialData = [];
-        
+        let pendingBackup = null;
+
         const initialData = [
             { month: 'Set/2024', cash: 29378.76, card: 84601.14, pix: 19906.80, ifood: 2254.60, expenses: 86227.97 },
             { month: 'Out/2024', cash: 34786.49, card: 102718.10, pix: 28953.75, ifood: 2057.33, expenses: 117825.87 },
@@ -226,24 +269,101 @@
             { month: 'Abr/2025', cash: 45548.77, card: 88766.42, pix: 36495.25, ifood: 3458.16, expenses: 120762.56 },
         ];
 
+        let toastTimer;
+        function showToast(message, type = 'info') {
+            const el = document.getElementById('toast');
+            if (!el) return;
+            const bg = type === 'error' ? 'bg-red-600' : (type === 'success' ? 'bg-green-600' : 'bg-gray-800');
+            el.textContent = message;
+            el.className = `fixed bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:w-96 sm:-ml-48 z-50 px-4 py-3 rounded-lg shadow-lg text-sm text-white ${bg}`;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.add('hidden'), 6000);
+        }
+
+        // Aceita número, "1234.56" ou "1.234,56" (formato pt-BR vindo de arquivos editados à mão).
+        function toNumber(value) {
+            if (typeof value === 'number') return isFinite(value) ? value : 0;
+            if (value === null || value === undefined) return 0;
+            let str = String(value).trim().replace(/[^\d,.-]/g, '');
+            if (str.indexOf(',') !== -1) {
+                str = str.replace(/\./g, '').replace(',', '.'); // 1.234,56 -> 1234.56
+            } else if ((str.match(/\./g) || []).length > 1) {
+                str = str.replace(/\./g, ''); // 1.234.567 só pode ser separador de milhar
+            }
+            const parsed = parseFloat(str);
+            return isFinite(parsed) ? parsed : 0;
+        }
+
+        function normalizeRecord(item) {
+            const source = item || {};
+            return {
+                month: String(source.month === undefined || source.month === null ? '' : source.month).trim(),
+                cash: toNumber(source.cash),
+                card: toNumber(source.card),
+                pix: toNumber(source.pix),
+                ifood: toNumber(source.ifood),
+                expenses: toNumber(source.expenses)
+            };
+        }
+
         function saveData() {
-            localStorage.setItem('financialReportData', JSON.stringify(financialData));
+            try {
+                localStorage.setItem('financialReportData', JSON.stringify(financialData));
+                return true;
+            } catch (err) {
+                // Acontece em aba anônima, com armazenamento bloqueado ou memória cheia.
+                // O aviso é repetido a cada tentativa de propósito: sem ele o usuário
+                // acha que salvou e perde tudo ao recarregar a página.
+                showToast('O navegador bloqueou o armazenamento (aba anônima ou memória cheia). Os dados estão na tela, mas somem ao recarregar — use o botão Backup para guardar o arquivo.', 'error');
+                return false;
+            }
         }
 
         function loadData() {
-            const savedData = localStorage.getItem('financialReportData');
-            const data = savedData ? JSON.parse(savedData) : initialData;
-            financialData = sortData(data);
-            if (!savedData) saveData();
+            let savedData = null;
+            try {
+                savedData = localStorage.getItem('financialReportData');
+            } catch (err) {
+                savedData = null;
+            }
+
+            let data = initialData;
+            let savedDataValid = false;
+            if (savedData) {
+                try {
+                    const parsed = JSON.parse(savedData);
+                    if (Array.isArray(parsed)) {
+                        data = parsed;
+                        savedDataValid = true;
+                    }
+                } catch (err) { /* tratado abaixo */ }
+                if (!savedDataValid) {
+                    showToast('Os dados salvos estavam corrompidos; carregando os dados iniciais.', 'error');
+                }
+            }
+
+            financialData = sortData(data.map(normalizeRecord));
+            // Regrava também quando o conteúdo salvo era inválido, para não repetir o erro.
+            if (!savedDataValid) saveData();
+        }
+
+        const MONTH_MAP = { jan:1, fev:2, mar:3, abr:4, mai:5, maio:5, jun:6, jul:7, ago:8, set:9, out:10, nov:11, dez:12 };
+
+        // Meses fora do padrão ("maio/25", "MAR/2025") continuam ordenando corretamente;
+        // os irreconhecíveis vão para o fim em vez de gerar NaN e bagunçar a lista.
+        function monthSortKey(monthStr) {
+            const parts = String(monthStr || '').trim().split('/');
+            const name = (parts[0] || '').trim().toLowerCase().replace(/\./g, '');
+            let year = parseInt(parts[1], 10);
+            const month = MONTH_MAP[name] || MONTH_MAP[name.slice(0, 3)];
+            // typeof: nomes como "constructor" herdam valores do protótipo e voltariam NaN.
+            if (typeof month !== 'number' || isNaN(year)) return Number.MAX_SAFE_INTEGER;
+            if (year < 100) year += 2000;
+            return year * 12 + month;
         }
 
         function sortData(data) {
-            return data.sort((a, b) => {
-                const [aMonthStr, aYear] = a.month.split('/');
-                const [bMonthStr, bYear] = b.month.split('/');
-                const monthMap = { 'Set':9, 'Out':10, 'Nov':11, 'Dez':12, 'Jan':1, 'Fev':2, 'Mar':3, 'Abr':4, 'Mai':5, 'Jun':6, 'Jul':7, 'Ago':8 };
-                return new Date(aYear, monthMap[aMonthStr] - 1) - new Date(bYear, monthMap[bMonthStr] - 1);
-            });
+            return data.slice().sort((a, b) => monthSortKey(a.month) - monthSortKey(b.month));
         }
         
         // #############################################################
@@ -276,25 +396,45 @@
 
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            const newData = {
+            const newData = normalizeRecord({
                 month: document.getElementById('month').value,
-                cash: parseFloat(document.getElementById('cash').value) || 0,
-                card: parseFloat(document.getElementById('card').value) || 0,
-                pix: parseFloat(document.getElementById('pix').value) || 0,
-                ifood: parseFloat(document.getElementById('ifood').value) || 0,
-                expenses: parseFloat(document.getElementById('expenses').value) || 0,
-            };
+                cash: document.getElementById('cash').value,
+                card: document.getElementById('card').value,
+                pix: document.getElementById('pix').value,
+                ifood: document.getElementById('ifood').value,
+                expenses: document.getElementById('expenses').value,
+            });
+
+            if (!newData.month) {
+                showToast('Informe o mês (ex: Mai/2025).', 'error');
+                return;
+            }
+
             const editIndex = document.getElementById('edit-index').value;
+            let message = `${newData.month} adicionado.`;
 
             if (editIndex !== '') {
-                financialData[editIndex] = newData;
+                financialData[Number(editIndex)] = newData;
+                message = `${newData.month} atualizado.`;
             } else {
-                financialData.push(newData);
+                // Evita dois registros do mesmo mês, que fazem os botões de editar/excluir
+                // agirem sempre na primeira ocorrência.
+                const duplicate = financialData.findIndex(d => d.month.toLowerCase() === newData.month.toLowerCase());
+                if (duplicate !== -1) {
+                    financialData[duplicate] = newData;
+                    message = `${newData.month} já existia e foi atualizado.`;
+                } else {
+                    financialData.push(newData);
+                }
             }
+
             financialData = sortData(financialData);
-            saveData();
+            // A tela é atualizada mesmo se a gravação falhar (o saveData avisa o usuário).
+            const saved = saveData();
             updateDashboard(financialData);
             closeModal();
+            // Se a gravação falhou, o aviso do saveData é mais importante e fica na tela.
+            if (saved) showToast(message, 'success');
         });
 
         function deleteData(index) {
@@ -311,7 +451,7 @@
         
         function exportDataToCSV() {
             if (financialData.length === 0) {
-                alert('Não há dados para exportar.');
+                showToast('Não há dados para exportar.', 'error');
                 return;
             }
             const headers = ['Mês', 'Entrada (Dinheiro)', 'Entrada (Cartão)', 'Entrada (Pix)', 'Entrada (iFood)', 'Entrada Bruta', 'Saídas (Despesas)', 'Lucro', 'Margem (%)'];
@@ -323,21 +463,32 @@
             });
             const csvContent = [headers.join(';'), ...rows].join('\n');
             const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
+            link.href = url;
             link.download = 'relatorio_financeiro.csv';
+            document.body.appendChild(link);
             link.click();
+            setTimeout(() => {
+                if (link.parentNode) link.parentNode.removeChild(link);
+                URL.revokeObjectURL(url);
+            }, 5000);
         }
 
         async function exportToPDF() {
+            if (!window.jspdf || typeof html2canvas === 'undefined' || typeof Chart === 'undefined') {
+                showToast('As bibliotecas de PDF não carregaram. Verifique a conexão e recarregue a página.', 'error');
+                return;
+            }
+
             const btn = document.getElementById('pdf-export-btn');
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando...';
 
             Chart.defaults.animation = false;
-            revenueExpensesChart.update();
-            paymentTrendsChart.update();
-            
+            if (revenueExpensesChart) revenueExpensesChart.update();
+            if (paymentTrendsChart) paymentTrendsChart.update();
+
             await new Promise(resolve => setTimeout(resolve, 500));
 
             const { jsPDF } = window.jspdf;
@@ -389,10 +540,10 @@
             });
             
             doc.save('relatorio_executivo.pdf');
-            
+
             Chart.defaults.animation = true;
-            revenueExpensesChart.update();
-            paymentTrendsChart.update();
+            if (revenueExpensesChart) revenueExpensesChart.update();
+            if (paymentTrendsChart) paymentTrendsChart.update();
 
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-file-pdf mr-2"></i> PDF';
@@ -519,16 +670,25 @@
             tooltip: '#111827'
         };
 
-        Chart.defaults.font.family = "'Segoe UI', 'Roboto', 'sans-serif'";
-        Chart.defaults.plugins.legend.position = 'bottom';
-        Chart.defaults.plugins.tooltip.backgroundColor = chartColors.tooltip;
-        Chart.defaults.plugins.tooltip.titleFont = { size: 14, weight: 'bold' };
-        Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
-        Chart.defaults.plugins.tooltip.padding = 10;
-        Chart.defaults.plugins.tooltip.cornerRadius = 4;
-        Chart.register(ChartDataLabels);
+        // As bibliotecas vêm de CDN. Em conexão móvel lenta, com economia de dados
+        // ou bloqueador de anúncios elas podem não carregar — sem esta proteção o
+        // erro interrompe o script e a página inteira (tabela, adicionar, backup)
+        // deixa de funcionar.
+        const chartsAvailable = typeof Chart !== 'undefined';
+
+        if (chartsAvailable) {
+            Chart.defaults.font.family = "'Segoe UI', 'Roboto', 'sans-serif'";
+            Chart.defaults.plugins.legend.position = 'bottom';
+            Chart.defaults.plugins.tooltip.backgroundColor = chartColors.tooltip;
+            Chart.defaults.plugins.tooltip.titleFont = { size: 14, weight: 'bold' };
+            Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
+            Chart.defaults.plugins.tooltip.padding = 10;
+            Chart.defaults.plugins.tooltip.cornerRadius = 4;
+            if (typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
+        }
 
         function updateCharts(data) {
+            if (!chartsAvailable) return;
             const labels = data.map(d => d.month);
             const ctx = document.getElementById('profitMarginChart').getContext('2d');
             const gradient = ctx.createLinearGradient(0, 0, 0, 300);
@@ -698,55 +858,137 @@
         // # 6. FUNÇÕES DE BACKUP (NOVO)
         // #############################################################
 
-        function exportBackup() {
+        async function exportBackup() {
             if (financialData.length === 0) {
-                alert('Não há dados para exportar.');
+                showToast('Não há dados para exportar.', 'error');
                 return;
             }
-            // Converte os dados para JSON String
+
             const dataStr = JSON.stringify(financialData, null, 2);
-            // Cria um blob
+            const filename = `backup_financeiro_${new Date().toISOString().slice(0, 10)}.json`;
             const blob = new Blob([dataStr], { type: 'application/json' });
-            // Cria link de download
+
+            // No celular o compartilhamento nativo é bem mais confiável do que o
+            // download por link: permite salvar no Drive, Arquivos, WhatsApp etc.
+            try {
+                if (navigator.canShare && typeof File === 'function') {
+                    const file = new File([blob], filename, { type: 'application/json' });
+                    if (navigator.canShare({ files: [file] })) {
+                        await navigator.share({ files: [file], title: 'Backup Financeiro' });
+                        return;
+                    }
+                }
+            } catch (err) {
+                if (err && err.name === 'AbortError') return; // usuário cancelou
+                // qualquer outro erro: segue para o download tradicional
+            }
+
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
-            const timestamp = new Date().toISOString().slice(0, 10);
             link.href = url;
-            link.download = `backup_financeiro_${timestamp}.json`;
+            link.download = filename;
+            link.rel = 'noopener';
+            // O link precisa estar no documento e a URL só pode ser liberada depois
+            // que o download começa — revogar na hora trunca o arquivo no mobile.
+            document.body.appendChild(link);
             link.click();
-            URL.revokeObjectURL(url);
+            setTimeout(() => {
+                if (link.parentNode) link.parentNode.removeChild(link);
+                URL.revokeObjectURL(url);
+            }, 5000);
+            showToast(`Backup gerado: ${filename}`, 'success');
         }
 
         function importBackup(input) {
-            const file = input.files[0];
+            const file = input.files && input.files[0];
+            // Libera o input imediatamente para que o mesmo arquivo possa ser
+            // escolhido de novo, inclusive quando a leitura falha.
+            input.value = '';
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const json = JSON.parse(e.target.result);
-                    
-                    // Validação simples: verificar se é um array e se tem campos obrigatórios no primeiro item
-                    if (!Array.isArray(json)) {
-                        throw new Error('Formato inválido: O arquivo deve conter uma lista de dados.');
-                    }
-                    if (json.length > 0 && (!json[0].hasOwnProperty('month') || !json[0].hasOwnProperty('cash'))) {
-                        throw new Error('Formato inválido: Os dados não correspondem ao modelo financeiro.');
-                    }
 
-                    if(confirm(`Deseja substituir os dados atuais por ${json.length} registros do backup?`)) {
-                        financialData = sortData(json);
-                        saveData(); // Salva no LocalStorage
-                        updateDashboard(financialData); // Atualiza UI
-                        alert('Backup restaurado com sucesso!');
-                    }
-                } catch (err) {
-                    alert('Erro ao restaurar backup: ' + err.message);
-                }
-                // Limpa o input para permitir selecionar o mesmo arquivo novamente se necessário
-                input.value = '';
+            reader.onerror = function() {
+                showToast('Não foi possível ler o arquivo. Se ele está no Google Drive ou iCloud, baixe para o aparelho antes de restaurar.', 'error');
             };
+
+            reader.onload = function(e) {
+                let json;
+                try {
+                    json = JSON.parse(e.target.result);
+                } catch (err) {
+                    showToast('O arquivo escolhido não é um backup válido (não é JSON). Selecione o arquivo backup_financeiro_....json.', 'error');
+                    return;
+                }
+
+                if (!Array.isArray(json)) {
+                    showToast('Formato inválido: o arquivo deve conter uma lista de meses.', 'error');
+                    return;
+                }
+                if (!json.every(item => item && typeof item === 'object' && 'month' in item)) {
+                    showToast('Formato inválido: os dados não correspondem ao modelo financeiro.', 'error');
+                    return;
+                }
+
+                const records = json.map(normalizeRecord).filter(r => r.month);
+                if (records.length === 0) {
+                    showToast('O backup não contém nenhum registro válido.', 'error');
+                    return;
+                }
+
+                openRestoreModal(records);
+            };
+
             reader.readAsText(file);
+        }
+
+        function openRestoreModal(records) {
+            pendingBackup = records;
+            const existing = new Set(financialData.map(d => d.month.toLowerCase()));
+            const novos = records.filter(r => !existing.has(r.month.toLowerCase())).length;
+            const repetidos = records.length - novos;
+
+            document.getElementById('restore-summary').innerHTML =
+                `O arquivo tem <strong>${records.length}</strong> registro(s): <strong>${novos}</strong> mês(es) que ainda não estão aqui e <strong>${repetidos}</strong> já existente(s). Neste aparelho há <strong>${financialData.length}</strong> mês(es) salvos.`;
+            document.getElementById('restore-modal').classList.remove('hidden');
+        }
+
+        function closeRestoreModal() {
+            pendingBackup = null;
+            document.getElementById('restore-modal').classList.add('hidden');
+        }
+
+        function confirmRestore(mode) {
+            if (!pendingBackup) { closeRestoreModal(); return; }
+
+            const backup = pendingBackup;
+            let added = 0;
+            let updated = 0;
+            let message;
+
+            if (mode === 'replace') {
+                financialData = sortData(backup);
+                message = `Backup restaurado: ${backup.length} registro(s).`;
+            } else {
+                const merged = financialData.slice();
+                backup.forEach(record => {
+                    const index = merged.findIndex(d => d.month.toLowerCase() === record.month.toLowerCase());
+                    if (index === -1) {
+                        merged.push(record);
+                        added++;
+                    } else {
+                        merged[index] = record;
+                        updated++;
+                    }
+                });
+                financialData = sortData(merged);
+                message = `Backup mesclado: ${added} mês(es) novo(s) e ${updated} atualizado(s).`;
+            }
+
+            const saved = saveData();
+            updateDashboard(financialData);
+            closeRestoreModal();
+            if (saved) showToast(message, 'success');
         }
         
         // #############################################################
