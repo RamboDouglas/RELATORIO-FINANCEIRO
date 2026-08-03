@@ -184,6 +184,18 @@ Aí você escolhe entre duas opções:
 
 Se o arquivo não for um backup válido, ou se a leitura falhar, o app diz o que houve. Nada acontece em silêncio.
 
+### Importar do Controle Financeiro (app de caixa)
+
+O mesmo botão **Restaurar** aceita o backup do app de caixa. Ele reconhece o formato sozinho e transforma os lançamentos diários em um registro por mês:
+
+- **Receita** — vendas do tipo *entrada*, agrupadas pela forma de pagamento em dinheiro, cartão e pix. Formas criadas depois também são reconhecidas pelo prefixo (`cartao_stone` entra em cartão).
+- **Despesas** — saídas de caixa mais boletos. Os dois somam sem risco de contagem dupla: as saídas são compras miúdas do dia (gelo, marmita), não pagamento de boleto.
+- **Gastos pessoais ficam de fora** — são retiradas do dono, não custo da loja. O total ignorado aparece no resumo antes de você confirmar.
+- **iFood vem zerado** — naquele sistema o iFood não é forma de pagamento separada, já entra em cartão, dinheiro ou pix. Preencha a coluna à mão pelo botão de editar.
+- **O mês corrente não entra** — ele teria poucos dias de venda contra boletos do mês inteiro, muitos com vencimento futuro, e a margem sairia irreal. Ele é importado sozinho na próxima vez, depois de fechado.
+
+Ao mesclar, o **iFood digitado à mão é preservado**: reimportar para buscar um mês novo não zera o que você já preencheu, e o resumo informa em quantos meses ele foi mantido. Se alguma forma de pagamento não for reconhecida, o app avisa quanto ficou de fora em vez de descartar em silêncio.
+
 ---
 
 ## Onde os dados ficam guardados

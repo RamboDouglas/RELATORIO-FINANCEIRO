@@ -257,6 +257,7 @@
         
         let financialData = [];
         let pendingBackup = null;
+        let pendingBackupOrigem = 'painel';
 
         const initialData = [
             { month: 'Set/2024', cash: 29378.76, card: 84601.14, pix: 19906.80, ifood: 2254.60, expenses: 86227.97 },
@@ -899,6 +900,111 @@
             showToast(`Backup gerado: ${filename}`, 'success');
         }
 
+        // #############################################################
+        // # 6.1 IMPORTAÇÃO DO BACKUP DO CONTROLE FINANCEIRO (CAIXA)
+        // #############################################################
+        // O app de caixa exporta um JSON com três coleções: vendas
+        // (entradas por forma de pagamento e saídas de caixa), boletos
+        // (contas de fornecedor) e gastos_pessoais. Aqui esses
+        // lançamentos diários viram um registro por mês no formato do
+        // painel. Regras aplicadas, todas verificadas com dados reais:
+        //
+        //  - Receita  = vendas do tipo "entrada", agrupadas pela forma
+        //               de pagamento (dinheiro / cartão / pix).
+        //  - Despesas = saídas de caixa + boletos. Não há dupla
+        //               contagem: as saídas são compras miúdas do dia
+        //               (gelo, marmita), não pagamento de boleto.
+        //  - Gastos pessoais ficam de fora: são retiradas do dono, não
+        //               custo da loja.
+        //  - iFood não existe como forma separada naquele sistema (já
+        //               está dentro de cartão/dinheiro/pix), então a
+        //               coluna vem zerada para ser preenchida à mão.
+        //  - O mês corrente não entra: ele teria poucos dias de venda
+        //               contra boletos do mês inteiro, muitos com
+        //               vencimento futuro, e a margem sairia irreal.
+
+        const MESES_ABREV = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+        function pareceBackupDoCaixa(json) {
+            return json && typeof json === 'object' && !Array.isArray(json)
+                && (Array.isArray(json.vendas) || Array.isArray(json.boletos));
+        }
+
+        // As formas de pagamento são configuráveis por loja, então além
+        // dos ids padrão o prefixo também é reconhecido — uma forma nova
+        // como "cartao_stone" continua caindo em cartão.
+        function campoDaForma(id) {
+            const chave = String(id || '').trim().toLowerCase();
+            if (!chave) return null;
+            if (chave.startsWith('cartao') || chave.startsWith('cartão') ||
+                chave.startsWith('credito') || chave.startsWith('debito')) return 'card';
+            if (chave.startsWith('pix')) return 'pix';
+            if (chave.startsWith('dinheiro') || chave.startsWith('especie') ||
+                chave.startsWith('espécie')) return 'cash';
+            return null;
+        }
+
+        function converterBackupDoCaixa(json) {
+            const agora = new Date();
+            const mesCorrente = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
+
+            const meses = {};
+            const naoMapeadas = {};
+            let mesesIgnorados = new Set();
+            let totalPessoais = 0;
+
+            const chaveMes = data => String(data || '').slice(0, 7);
+            const rotulo = mes => {
+                const [ano, num] = mes.split('-');
+                return `${MESES_ABREV[Number(num) - 1]}/${ano}`;
+            };
+            const garante = mes => (meses[mes] ||= { cash: 0, card: 0, pix: 0, ifood: 0, expenses: 0 });
+            // Só entram meses inteiros já fechados.
+            const aceita = mes => {
+                if (!/^\d{4}-\d{2}$/.test(mes) || !MESES_ABREV[Number(mes.slice(5)) - 1]) return false;
+                if (mes >= mesCorrente) { mesesIgnorados.add(mes); return false; }
+                return true;
+            };
+
+            (json.vendas || []).forEach(v => {
+                const mes = chaveMes(v && v.data);
+                if (!aceita(mes)) return;
+                const valor = toNumber(v.valor);
+                if (!(valor > 0)) return;
+                if (v.tipo === 'entrada') {
+                    const campo = campoDaForma(v.forma_pagamento);
+                    if (campo) {
+                        garante(mes)[campo] += valor;
+                    } else {
+                        // Nunca descartar em silêncio: o usuário é avisado.
+                        const id = v.forma_pagamento || '(sem forma de pagamento)';
+                        naoMapeadas[id] = (naoMapeadas[id] || 0) + valor;
+                    }
+                } else {
+                    garante(mes).expenses += valor;
+                }
+            });
+
+            (json.boletos || []).forEach(b => {
+                const mes = chaveMes(b && b.data);
+                if (!aceita(mes)) return;
+                const valor = toNumber(b.valor);
+                if (valor > 0) garante(mes).expenses += valor;
+            });
+
+            (json.gastos_pessoais || []).forEach(g => {
+                totalPessoais += toNumber(g && g.valor);
+            });
+
+            const registros = Object.keys(meses).sort().map(mes => ({ month: rotulo(mes), ...meses[mes] }));
+            return {
+                registros,
+                naoMapeadas,
+                mesesIgnorados: [...mesesIgnorados].sort().map(rotulo),
+                totalPessoais
+            };
+        }
+
         function importBackup(input) {
             const file = input.files && input.files[0];
             // Libera o input imediatamente para que o mesmo arquivo possa ser
@@ -921,6 +1027,17 @@
                     return;
                 }
 
+                // Backup do app de caixa: converte os lançamentos diários em meses.
+                if (pareceBackupDoCaixa(json)) {
+                    const convertido = converterBackupDoCaixa(json);
+                    if (convertido.registros.length === 0) {
+                        showToast('O backup do caixa não tem nenhum mês fechado para importar.', 'error');
+                        return;
+                    }
+                    openRestoreModal(convertido.registros.map(normalizeRecord), 'caixa', convertido);
+                    return;
+                }
+
                 if (!Array.isArray(json)) {
                     showToast('Formato inválido: o arquivo deve conter uma lista de meses.', 'error');
                     return;
@@ -936,25 +1053,50 @@
                     return;
                 }
 
-                openRestoreModal(records);
+                openRestoreModal(records, 'painel');
             };
 
             reader.readAsText(file);
         }
 
-        function openRestoreModal(records) {
+        function openRestoreModal(records, origem, detalhes) {
             pendingBackup = records;
+            pendingBackupOrigem = origem || 'painel';
+
             const existing = new Set(financialData.map(d => d.month.toLowerCase()));
             const novos = records.filter(r => !existing.has(r.month.toLowerCase())).length;
             const repetidos = records.length - novos;
 
-            document.getElementById('restore-summary').innerHTML =
-                `O arquivo tem <strong>${records.length}</strong> registro(s): <strong>${novos}</strong> mês(es) que ainda não estão aqui e <strong>${repetidos}</strong> já existente(s). Neste aparelho há <strong>${financialData.length}</strong> mês(es) salvos.`;
+            let html = `O arquivo tem <strong>${records.length}</strong> registro(s): <strong>${novos}</strong> mês(es) que ainda não estão aqui e <strong>${repetidos}</strong> já existente(s). Neste aparelho há <strong>${financialData.length}</strong> mês(es) salvos.`;
+
+            if (pendingBackupOrigem === 'caixa' && detalhes) {
+                const periodo = records.length
+                    ? ` (${records[0].month} a ${records[records.length - 1].month})`
+                    : '';
+                html += `<span class="block mt-3 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-gray-700">`;
+                html += `Backup do <strong>Controle Financeiro</strong>: lançamentos diários somados por mês${periodo}.`;
+                if (detalhes.mesesIgnorados.length) {
+                    html += `<br>Mês em aberto fora da importação: <strong>${detalhes.mesesIgnorados.join(', ')}</strong>.`;
+                }
+                html += `<br>A coluna <strong>iFood fica zerada</strong> (naquele sistema ela já está dentro de cartão, dinheiro e pix) — preencha à mão depois pelo botão de editar.`;
+                if (detalhes.totalPessoais > 0) {
+                    html += `<br>Gastos pessoais não entram como despesa da loja: <strong>${formatCurrency(detalhes.totalPessoais)}</strong> ignorados.`;
+                }
+                const sobras = Object.keys(detalhes.naoMapeadas || {});
+                if (sobras.length) {
+                    const soma = sobras.reduce((s, k) => s + detalhes.naoMapeadas[k], 0);
+                    html += `<br><span class="text-red-600">Atenção: ${sobras.length} forma(s) de pagamento não reconhecida(s) — ${sobras.join(', ')} — somando ${formatCurrency(soma)} ficaram de fora da receita.</span>`;
+                }
+                html += `</span>`;
+            }
+
+            document.getElementById('restore-summary').innerHTML = html;
             document.getElementById('restore-modal').classList.remove('hidden');
         }
 
         function closeRestoreModal() {
             pendingBackup = null;
+            pendingBackupOrigem = 'painel';
             document.getElementById('restore-modal').classList.add('hidden');
         }
 
@@ -962,8 +1104,10 @@
             if (!pendingBackup) { closeRestoreModal(); return; }
 
             const backup = pendingBackup;
+            const doCaixa = pendingBackupOrigem === 'caixa';
             let added = 0;
             let updated = 0;
+            let ifoodPreservado = 0;
             let message;
 
             if (mode === 'replace') {
@@ -977,12 +1121,22 @@
                         merged.push(record);
                         added++;
                     } else {
+                        // O backup do caixa nunca traz iFood. Sem isto, reimportar
+                        // para pegar um mês novo zeraria o iFood digitado à mão
+                        // em todos os meses anteriores.
+                        if (doCaixa && merged[index].ifood > 0) {
+                            record = { ...record, ifood: merged[index].ifood };
+                            ifoodPreservado++;
+                        }
                         merged[index] = record;
                         updated++;
                     }
                 });
                 financialData = sortData(merged);
                 message = `Backup mesclado: ${added} mês(es) novo(s) e ${updated} atualizado(s).`;
+                if (ifoodPreservado > 0) {
+                    message += ` O iFood digitado à mão foi mantido em ${ifoodPreservado} mês(es).`;
+                }
             }
 
             const saved = saveData();
