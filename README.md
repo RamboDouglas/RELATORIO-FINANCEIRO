@@ -2,13 +2,15 @@
 
 Painel financeiro mensal para uma loja de conveniência. Registra as entradas por forma de pagamento e as despesas de cada mês, e a partir disso calcula lucro, margem, tendências, gráficos e análises automáticas.
 
-É um **arquivo HTML único** (`index.html`). Não precisa de instalação, servidor, build nem banco de dados: basta abrir o arquivo no navegador, no computador ou no celular.
+É um site estático em HTML, CSS e JavaScript puros, sem framework e sem servidor próprio. Todas as bibliotecas ficam dentro do repositório, então ele **funciona sem internet** — inclusive instalado como aplicativo no celular.
 
 ---
 
 ## Sumário
 
 - [Como usar](#como-usar)
+- [Estrutura do projeto](#estrutura-do-projeto)
+- [Desenvolvimento](#desenvolvimento)
 - [Dados de cada mês](#dados-de-cada-mês)
 - [Cadastro: adicionar, editar e excluir](#cadastro-adicionar-editar-e-excluir)
 - [Filtro de período](#filtro-de-período)
@@ -22,6 +24,7 @@ Painel financeiro mensal para uma loja de conveniência. Registra as entradas po
 - [Exportar CSV](#exportar-csv)
 - [Exportar PDF](#exportar-pdf)
 - [Backup e restauração](#backup-e-restauração)
+- [Proteção por senha](#proteção-por-senha)
 - [Onde os dados ficam guardados](#onde-os-dados-ficam-guardados)
 - [Comportamento em situações adversas](#comportamento-em-situações-adversas)
 - [Fórmulas usadas](#fórmulas-usadas)
@@ -31,11 +34,15 @@ Painel financeiro mensal para uma loja de conveniência. Registra as entradas po
 
 ## Como usar
 
-Abra o `index.html` no navegador — clicando duas vezes no arquivo, ou pelo endereço onde ele estiver publicado.
+**Instalado no celular (recomendado).** Abra o endereço publicado, toque no menu do navegador e escolha *Adicionar à tela de início*. O painel passa a abrir como um aplicativo, em tela cheia, e funciona sem internet.
 
-Na primeira vez, o painel já vem com oito meses de exemplo (Set/2024 a Abr/2025). A partir daí tudo o que você adicionar, editar ou excluir fica gravado no próprio navegador.
+**No navegador.** Basta acessar o endereço publicado. Também dá para abrir o `index.html` direto do computador, clicando duas vezes: tudo funciona, com duas exceções que dependem de uma página servida por HTTPS — o modo offline e o bloqueio por senha.
 
-Para gráficos, ícones e exportação em PDF o app carrega bibliotecas da internet. Sem conexão, o painel continua funcionando (tabelas, cadastro, backup, CSV) — apenas os gráficos e o PDF ficam indisponíveis.
+Na primeira vez o painel vem com oito meses de exemplo (Set/2024 a Abr/2025). A partir daí tudo o que você adicionar, editar ou excluir fica gravado no próprio aparelho.
+
+### Tema
+
+O painel segue o tema do sistema (claro ou escuro) e respeita a sua escolha pelo botão ao lado do título.
 
 ---
 
@@ -248,6 +255,62 @@ A seção **Comparar Períodos** coloca dois recortes lado a lado — receita br
 - **Alerta de digitação** — um valor três vezes acima ou abaixo da mediana do histórico pede uma segunda confirmação, para pegar zero a mais ou a menos.
 - **Confirmações na própria página** — nenhuma ação depende das janelas do navegador, que aplicativos como WhatsApp e Instagram bloqueiam.
 
+
+---
+
+## Estrutura do projeto
+
+```
+index.html               Marcação da interface
+css/tailwind.css         CSS gerado pelo Tailwind (versionado)
+css/styles.css           Estilos próprios
+js/core.js               Cálculo e conversões — funções puras, testáveis
+js/app.js                Interface, gráficos e eventos
+vendor/                  Chart.js, Font Awesome, jsPDF e html2canvas
+sw.js                    Service worker (modo offline)
+manifest.webmanifest     Instalação como aplicativo
+tests/                   Testes do núcleo e de interface
+```
+
+A separação entre `core.js` e `app.js` é proposital: o núcleo não toca no DOM
+nem no armazenamento, tudo entra por parâmetro e sai como retorno. É o que
+permite testar a parte onde um erro significa número errado no relatório.
+
+## Desenvolvimento
+
+```bash
+npm install          # dependências (só para desenvolver)
+npm run serve        # sobe o painel em http://127.0.0.1:8080
+npm run build:css    # regenera css/tailwind.css depois de mexer em classes
+npm test             # testes do núcleo + interface
+npm run lint         # ESLint
+npm run format       # Prettier
+```
+
+O `css/tailwind.css` é versionado de propósito: quem só quer usar o painel não
+precisa de build. Se você alterar classes no HTML ou no JS, rode
+`npm run build:css` e inclua o arquivo gerado no commit — a integração contínua
+verifica se ele está atualizado.
+
+A cada push na branch principal, o GitHub Actions roda lint, formatação e todos
+os testes, e publica o painel no GitHub Pages.
+
+---
+
+## Proteção por senha
+
+O botão no rodapé ativa um bloqueio opcional. Com ele ligado, os dados deixam de
+ficar legíveis no armazenamento do navegador: passam a ser cifrados com AES-GCM,
+usando uma chave derivada da senha por PBKDF2. Ao abrir o painel, a senha é
+pedida antes de qualquer coisa aparecer.
+
+**Guarde a senha.** Sem ela os dados guardados no aparelho não podem ser
+recuperados. O arquivo de backup continua sem cifra justamente para servir de
+recuperação — por isso o painel pede que você baixe um antes de ativar.
+
+O bloqueio exige uma página servida por HTTPS (ou localhost). Abrindo o arquivo
+direto do aparelho ele não fica disponível.
+
 ---
 
 ## Onde os dados ficam guardados
@@ -266,7 +329,7 @@ Os dados ficam no **armazenamento local do navegador** (`localStorage`), na chav
 
 O app foi ajustado para não falhar em silêncio:
 
-- **Sem internet ou com CDN bloqueado** — o painel continua funcionando: tabelas, cadastro, filtro, CSV e backup. Só gráficos e PDF ficam de fora, com aviso ao tentar gerar o PDF.
+- **Sem internet** — depois da primeira visita o painel abre normalmente, com gráficos, ícones e PDF, porque tudo fica guardado no aparelho pelo service worker.
 - **Armazenamento bloqueado** (aba anônima, memória cheia) — o mês adicionado aparece normalmente na tela e um aviso explica que os dados somem ao recarregar, orientando a baixar o backup.
 - **Dados salvos corrompidos** — o app avisa, carrega os dados iniciais e regrava, para o erro não se repetir a cada abertura.
 - **Arquivo de backup com valores em texto** — números escritos como `"1.234,56"` ou `"R$ 2.500,00"` são convertidos corretamente na importação.
@@ -295,9 +358,10 @@ O *período anterior* é o conjunto de meses imediatamente antes do período sel
 | Recurso | Uso |
 |---|---|
 | HTML, CSS e JavaScript puros | Toda a aplicação, em arquivo único |
-| [Tailwind CSS](https://tailwindcss.com) | Estilos e layout responsivo |
+| [Tailwind CSS](https://tailwindcss.com) | Estilos e layout responsivo, gerados por build |
 | [Chart.js](https://www.chartjs.org) + plugin *datalabels* | Os quatro gráficos |
 | [Font Awesome](https://fontawesome.com) | Ícones |
 | [jsPDF](https://github.com/parallax/jsPDF) + [html2canvas](https://html2canvas.hertzen.com) | Exportação em PDF |
 
-As bibliotecas são carregadas de CDN, sem instalação. Não há dependências para baixar, nem etapa de build.
+Todas ficam em `vendor/`, versionadas no repositório: o painel não depende de
+CDN nem de conexão para funcionar.

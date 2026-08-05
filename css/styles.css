@@ -1,0 +1,49 @@
+/* Garantia caso o CSS do Tailwind (CDN) não carregue: sem isto os modais
+   e o menu de filtro ficariam permanentemente abertos sobre a página.
+   Restrito a estes elementos de propósito — um `.hidden` global com
+   !important sobrescreveria variantes como `hidden sm:block`. */
+#data-modal.hidden,
+#restore-modal.hidden,
+#filter-dropdown.hidden,
+#toast.hidden { display: none !important; }
+.highlight-positive { animation: pulse-positive 2s infinite; }
+.highlight-negative { animation: pulse-negative 2s infinite; }
+@keyframes pulse-positive {
+    0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+@keyframes pulse-negative {
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.chart-container { position: relative; height: 300px; width: 100%; }
+.month-tab.active {
+    border-bottom-color: #3b82f6;
+    color: #2563eb;
+}
+/* O input de arquivo precisa continuar "renderizado" (display:none quebra
+   a abertura do seletor em navegadores embutidos do celular). */
+.visually-hidden-file {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    opacity: 0;
+}
+
+/* Avisos fixos nunca podem passar da largura da tela. Sem este limite,
+   em telas estreitas o navegador resolvia a largura contra a área de
+   rolagem da página e parte do texto ficava fora do visor. */
+#toast,
+#undo-bar {
+    max-width: calc(100vw - 2rem);
+    box-sizing: border-box;
+}

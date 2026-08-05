@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Conferir formatação
+        run: npm run format:check
+
+      - name: Testes do núcleo de cálculo
+        run: npm run test:unit
+
+      - name: Instalar navegador
+        run: npx playwright install --with-deps chromium
+
+      - name: Testes de interface
+        run: npm run test:ui
+
+      - name: Conferir se o CSS versionado está atualizado
+        run: |
+          npm run build:css
+          if ! git diff --quiet -- css/tailwind.css; then
+            echo "css/tailwind.css está desatualizado. Rode 'npm run build:css' e faça commit."
+            git diff --stat -- css/tailwind.css
+            exit 1
+          fi
