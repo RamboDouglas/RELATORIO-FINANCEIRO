@@ -3,81 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relatório Financeiro - Conveniência 2024/2025</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Bibliotecas para exportação de PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <meta name="description" content="Painel financeiro mensal para loja de conveniência: receita por forma de pagamento, despesas, margem e análises.">
+    <meta name="theme-color" content="#1f2937">
+    <title>Relatório Financeiro - Conveniência</title>
 
-    <style>
-        /* Garantia caso o CSS do Tailwind (CDN) não carregue: sem isto os modais
-           e o menu de filtro ficariam permanentemente abertos sobre a página.
-           Restrito a estes elementos de propósito — um `.hidden` global com
-           !important sobrescreveria variantes como `hidden sm:block`. */
-        #data-modal.hidden,
-        #restore-modal.hidden,
-        #filter-dropdown.hidden,
-        #toast.hidden { display: none !important; }
-        .highlight-positive { animation: pulse-positive 2s infinite; }
-        .highlight-negative { animation: pulse-negative 2s infinite; }
-        @keyframes pulse-positive {
-            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-        }
-        @keyframes pulse-negative {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        .chart-container { position: relative; height: 300px; width: 100%; }
-        .month-tab.active {
-            border-bottom-color: #3b82f6;
-            color: #2563eb;
-        }
-        /* O input de arquivo precisa continuar "renderizado" (display:none quebra
-           a abertura do seletor em navegadores embutidos do celular). */
-        .visually-hidden-file {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            margin: -1px;
-            padding: 0;
-            border: 0;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            opacity: 0;
-        }
-    </style>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+    <!-- Tudo local: sem CDN, o painel abre igual sem internet -->
+    <link rel="stylesheet" href="css/tailwind.css">
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="bg-gray-50">
+<body class="bg-gray-50 dark:bg-gray-900">
     <div class="container mx-auto px-4 py-8">
         <!-- Header -->
         <header class="mb-8">
             <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-800">Relatório Financeiro</h1>
-                    <p class="text-gray-600">Conveniência - Dinâmico</p>
+                <div class="flex items-start justify-between w-full xl:w-auto">
+                    <div>
+                        <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">Relatório Financeiro</h1>
+                        <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400">Conveniência - Dinâmico</p>
+                    </div>
+                    <button type="button" id="theme-toggle" onclick="alternarTema()" class="ml-4 shrink-0 w-10 h-10 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800"></button>
                 </div>
-                
-                <div class="flex flex-col sm:flex-row flex-wrap items-center gap-2">
+
+                <!-- No celular os botões formam uma grade de 4 colunas: filtro e
+                     "Adicionar" ocupam a linha inteira e as quatro ações
+                     secundárias cabem numa única faixa. A partir de sm volta a
+                     ser a linha horizontal de sempre. -->
+                <div class="w-full xl:w-auto grid grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:items-center">
                      <!-- Filtro de Mês -->
-                     <div class="relative inline-block text-left" id="multi-month-filter">
+                     <div class="col-span-4 relative text-left sm:col-auto sm:inline-block" id="multi-month-filter">
                         <div>
-                            <button type="button" onclick="toggleFilterDropdown()" class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none">
+                            <button type="button" onclick="toggleFilterDropdown()" class="inline-flex items-center justify-center w-full rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none">
                                 Analisar Período
                                 <svg class="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                     <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                 </svg>
                             </button>
                         </div>
-                        <div id="filter-dropdown" class="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-20">
-                            <div class="py-1" id="month-checkboxes" style="max-height: 300px; overflow-y: auto;">
+                        <div id="filter-dropdown" class="origin-top-right absolute right-0 mt-2 w-64 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-20">
+                            <!-- Atalhos de período (item 31) -->
+                            <div class="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Atalhos</p>
+                                <div class="grid grid-cols-2 gap-1">
+                                    <button type="button" onclick="aplicarAtalhoPeriodo(3)" class="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-200">Últimos 3</button>
+                                    <button type="button" onclick="aplicarAtalhoPeriodo(6)" class="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-200">Últimos 6</button>
+                                    <button type="button" onclick="aplicarAtalhoPeriodo(12)" class="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-200">Últimos 12</button>
+                                    <button type="button" onclick="aplicarAtalhoPeriodo('ano')" class="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-200">Ano atual</button>
+                                    <button type="button" onclick="aplicarAtalhoPeriodo('tudo')" class="col-span-2 px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-200">Todo o histórico</button>
+                                </div>
+                            </div>
+                            <div class="py-1" id="month-checkboxes" style="max-height: 260px; overflow-y: auto;">
                                 <!-- Checkboxes will be populated by JS -->
                             </div>
                             <div class="px-4 py-2 border-t border-gray-200">
@@ -86,15 +65,16 @@
                         </div>
                     </div>
 
-                    <!-- Botões de Ação Principais -->
-                    <button onclick="openModal()" class="bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-700 flex items-center"><i class="fas fa-plus mr-2"></i> Adicionar</button>
-                    <button onclick="exportDataToCSV()" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center"><i class="fas fa-file-csv mr-2"></i> CSV</button>
-                    <button onclick="exportToPDF()" id="pdf-export-btn" class="bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-700 flex items-center"><i class="fas fa-file-pdf mr-2"></i> PDF</button>
-                    
-                    <!-- Botões de Backup (NOVO) -->
+                    <!-- Ação principal: linha inteira no celular -->
+                    <button onclick="openModal()" aria-label="Adicionar mês" class="col-span-4 sm:col-auto bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-700 flex items-center justify-center"><i class="fas fa-plus mr-2"></i> Adicionar</button>
+
+                    <!-- Ações secundárias: quatro colunas no celular, ícone acima do rótulo -->
+                    <button onclick="exportDataToCSV()" aria-label="Exportar CSV" class="bg-blue-600 text-white px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-700 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-0"><i class="fas fa-file-csv sm:mr-2"></i> CSV</button>
+                    <button onclick="exportToPDF()" id="pdf-export-btn" aria-label="Exportar PDF" class="bg-red-600 text-white px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-red-700 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-0"><i class="fas fa-file-pdf sm:mr-2"></i> PDF</button>
+
                     <div class="h-6 w-px bg-gray-300 mx-1 hidden sm:block"></div>
-                    <button onclick="exportBackup()" class="bg-gray-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 flex items-center" title="Baixar Backup"><i class="fas fa-file-export mr-2"></i> Backup</button>
-                    <label for="backup-input" class="bg-gray-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 flex items-center cursor-pointer" title="Restaurar Backup"><i class="fas fa-file-import mr-2"></i> Restaurar</label>
+                    <button onclick="exportBackup()" aria-label="Baixar backup" class="bg-gray-600 text-white px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-700 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-0" title="Baixar Backup"><i class="fas fa-file-export sm:mr-2"></i> Backup</button>
+                    <label for="backup-input" class="bg-gray-600 text-white px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-700 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-0 cursor-pointer" title="Restaurar Backup"><i class="fas fa-file-import sm:mr-2"></i> Restaurar</label>
                     <input type="file" id="backup-input" class="visually-hidden-file" onchange="importBackup(this)">
                 </div>
             </div>
@@ -103,35 +83,72 @@
 
         <!-- Summary Cards -->
         <section class="mb-8">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center"><i class="fas fa-chart-line mr-2 text-blue-500"></i> Visão Geral</h2>
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center justify-between gap-2">
+                <span class="flex items-center"><i class="fas fa-chart-line mr-2 text-blue-500"></i> Visão Geral</span>
+                <button onclick="abrirConfig()" class="text-sm font-normal text-blue-600 hover:text-blue-800 flex items-center whitespace-nowrap"><i class="fas fa-sliders-h mr-1"></i> Taxas e metas</button>
+            </h2>
+            <div id="goal-progress" class="mb-4"></div>
             <div id="summary-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+            <div id="projection-note" class="mt-4"></div>
         </section>
 
         <!-- Charts Section -->
         <section class="mb-8">
-             <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center"><i class="fas fa-chart-bar mr-2 text-blue-500"></i> Análise Mensal</h2>
+             <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center"><i class="fas fa-chart-bar mr-2 text-blue-500"></i> Análise Mensal</h2>
              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                 <div class="bg-white rounded-lg shadow p-6" id="revenue-expenses-card">
-                     <h3 class="text-lg font-medium text-gray-900 mb-4">Receita vs Despesas</h3>
+                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6" id="revenue-expenses-card">
+                     <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Receita vs Despesas</h3>
                      <div class="chart-container"><canvas id="revenueExpensesChart"></canvas></div>
                  </div>
-                 <div class="bg-white rounded-lg shadow p-6">
-                     <h3 class="text-lg font-medium text-gray-900 mb-4">Margem de Lucro Mensal</h3>
+                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                     <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Margem de Lucro Mensal</h3>
                      <div class="chart-container"><canvas id="profitMarginChart"></canvas></div>
                  </div>
              </div>
+             <div id="expense-categories-card" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mt-6 hidden">
+                 <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Composição das Despesas</h3>
+                 <div class="chart-container"><canvas id="expenseCategoriesChart"></canvas></div>
+             </div>
          </section>
+
+        <!-- Comparação entre dois períodos -->
+        <section class="mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center justify-between gap-2">
+                <span class="flex items-center"><i class="fas fa-balance-scale mr-2 text-blue-500"></i> Comparar Períodos</span>
+                <button onclick="alternarComparacao()" id="compare-toggle" class="text-sm font-normal text-blue-600 hover:text-blue-800 whitespace-nowrap">Mostrar</button>
+            </h2>
+            <div id="compare-panel" class="bg-white rounded-lg shadow p-6 hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Período A</label>
+                        <div class="flex gap-2">
+                            <select id="compare-a-start" class="flex-1 px-2 py-2 border border-gray-300 rounded-md text-sm bg-white"></select>
+                            <select id="compare-a-end" class="flex-1 px-2 py-2 border border-gray-300 rounded-md text-sm bg-white"></select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Período B</label>
+                        <div class="flex gap-2">
+                            <select id="compare-b-start" class="flex-1 px-2 py-2 border border-gray-300 rounded-md text-sm bg-white"></select>
+                            <select id="compare-b-end" class="flex-1 px-2 py-2 border border-gray-300 rounded-md text-sm bg-white"></select>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="compararPeriodos()" class="mt-4 w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Comparar</button>
+                <div id="compare-result" class="mt-6"></div>
+            </div>
+        </section>
         
         <!-- Payment Methods -->
          <section class="mb-8">
-             <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center"><i class="fas fa-credit-card mr-2 text-blue-500"></i> Métodos de Pagamento</h2>
+             <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center"><i class="fas fa-credit-card mr-2 text-blue-500"></i> Métodos de Pagamento</h2>
              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                 <div class="bg-white rounded-lg shadow p-6">
-                     <h3 class="text-lg font-medium text-gray-900 mb-4">Distribuição Total</h3>
+                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                     <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Distribuição Total</h3>
                      <div class="chart-container"><canvas id="paymentMethodsChart"></canvas></div>
                  </div>
-                 <div class="bg-white rounded-lg shadow p-6 col-span-2" id="payment-trends-card">
-                     <h3 class="text-lg font-medium text-gray-900 mb-4">Evolução dos Métodos</h3>
+                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 col-span-2" id="payment-trends-card">
+                     <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Evolução dos Métodos</h3>
                      <div class="chart-container"><canvas id="paymentTrendsChart"></canvas></div>
                  </div>
              </div>
@@ -139,21 +156,15 @@
 
         <!-- Detailed Tables -->
         <section class="mb-8">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center"><i class="fas fa-table mr-2 text-blue-500"></i> Detalhamento Mensal</h2>
-            <div class="bg-white shadow rounded-lg overflow-hidden">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center"><i class="fas fa-table mr-2 text-blue-500"></i> Detalhamento Mensal</h2>
+            <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
                 <div class="overflow-x-auto scrollbar-hide">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mês</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entrada Bruta</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Saídas</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lucro</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Margem</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
-                            </tr>
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <caption class="sr-only">Detalhamento financeiro por mês</caption>
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr id="main-table-head"></tr>
                         </thead>
-                        <tbody id="main-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                        <tbody id="main-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700"></tbody>
                     </table>
                 </div>
             </div>
@@ -161,8 +172,8 @@
 
         <!-- Insights and Recommendations -->
         <section class="mb-8">
-             <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center"><i class="fas fa-lightbulb mr-2 text-blue-500"></i> Insights Dinâmicos</h2>
-             <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+             <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center"><i class="fas fa-lightbulb mr-2 text-blue-500"></i> Insights Dinâmicos</h2>
+             <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border-l-4 border-blue-500">
                  <ul id="insights-list" class="space-y-3">
                      <!-- Insights will be generated here by JS -->
                  </ul>
@@ -171,9 +182,9 @@
 
         <!-- Detailed Monthly Analysis -->
         <section class="mb-8">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center"><i class="fas fa-search-dollar mr-2 text-blue-500"></i> Análise Detalhada por Mês</h2>
-            <div class="bg-white shadow rounded-lg overflow-hidden">
-                <div class="border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center"><i class="fas fa-search-dollar mr-2 text-blue-500"></i> Análise Detalhada por Mês</h2>
+            <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+                <div class="border-b border-gray-200 dark:border-gray-700">
                     <nav id="month-tabs" class="flex -mb-px overflow-x-auto scrollbar-hide"></nav>
                 </div>
                 <div id="monthAnalysisContent" class="p-6"></div>
@@ -182,44 +193,65 @@
 
         <!-- Monthly Highlights -->
         <section class="mb-8">
-             <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center"><i class="fas fa-star mr-2 text-blue-500"></i> Destaques do Período</h2>
+             <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center"><i class="fas fa-star mr-2 text-blue-500"></i> Destaques do Período</h2>
              <div id="highlights-section" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
         </section>
 
         <!-- Footer -->
-        <footer class="mt-12 border-t border-gray-200 pt-8"><p class="text-sm text-center text-gray-500">Relatório Financeiro - Conveniência</p></footer>
+        <footer class="mt-12 border-t border-gray-200 dark:border-gray-700 pt-8 pb-4">
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
+                <button type="button" onclick="exportarParaContabilidade()" class="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center"><i class="fas fa-file-invoice-dollar mr-1"></i> Planilha para a contabilidade</button>
+                <span class="hidden sm:block text-gray-300 dark:text-gray-600">|</span>
+                <button type="button" id="lock-toggle" class="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center"></button>
+            </div>
+            <p class="text-sm text-center text-gray-500 dark:text-gray-400">Relatório Financeiro - Conveniência &middot; versão <span id="app-version">—</span></p>
+        </footer>
     </div>
 
     <!-- Modal para Adicionar/Editar Mês -->
-    <div id="data-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-        <div class="relative top-10 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <h3 class="text-lg text-center leading-6 font-medium text-gray-900" id="modal-title">Adicionar Novo Mês</h3>
+    <div id="data-modal" class="modal-overlay bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="modal-caixa p-5 border max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <h3 class="text-lg text-center leading-6 font-medium text-gray-900 dark:text-gray-100" id="modal-title">Adicionar Novo Mês</h3>
             <form id="data-form" class="mt-4 space-y-4">
                 <input type="hidden" id="edit-index">
                 <div>
-                    <label for="month" class="block text-sm font-medium text-gray-700">Mês (ex: Jan/2025)</label>
-                    <input type="text" id="month" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                    <label for="month-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Mês</label>
+                    <div class="mt-1 grid grid-cols-2 gap-2">
+                        <select id="month-name" class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 dark:text-gray-100" required></select>
+                        <select id="month-year" class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 dark:text-gray-100" required></select>
+                    </div>
                 </div>
                 <div>
-                    <label for="cash" class="block text-sm font-medium text-gray-700">Entrada (Dinheiro)</label>
-                    <input type="number" step="0.01" id="cash" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                    <label for="cash" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Entrada (Dinheiro)</label>
+                    <input type="number" step="0.01" id="cash" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md" required>
                 </div>
                 <div>
-                    <label for="card" class="block text-sm font-medium text-gray-700">Entrada (Cartão)</label>
-                    <input type="number" step="0.01" id="card" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                    <label for="card" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Entrada (Cartão)</label>
+                    <input type="number" step="0.01" id="card" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md" required>
                 </div>
                  <div>
-                    <label for="pix" class="block text-sm font-medium text-gray-700">Entrada (Pix)</label>
-                    <input type="number" step="0.01" id="pix" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                    <label for="pix" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Entrada (Pix)</label>
+                    <input type="number" step="0.01" id="pix" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md" required>
                 </div>
                  <div>
-                    <label for="ifood" class="block text-sm font-medium text-gray-700">Entrada (iFood)</label>
-                    <input type="number" step="0.01" id="ifood" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                    <label for="ifood" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Entrada (iFood)</label>
+                    <input type="number" step="0.01" id="ifood" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md" required>
                 </div>
                 <div>
-                    <label for="expenses" class="block text-sm font-medium text-gray-700">Saídas (Despesas)</label>
-                    <input type="number" step="0.01" id="expenses" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                    <label for="expenses" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Saídas (Despesas)</label>
+                    <input type="number" step="0.01" id="expenses" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md" required>
                 </div>
+                <div>
+                    <label for="cmv" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Desse total, mercadoria / CMV <span class="text-gray-400 font-normal">(opcional)</span></label>
+                    <input type="number" step="0.01" id="cmv" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md">
+                    <p class="mt-1 text-xs text-gray-500">Parte das despesas que é compra de mercadoria. Permite calcular a margem de contribuição.</p>
+                </div>
+                <div>
+                    <label for="sales-count" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nº de vendas no mês <span class="text-gray-400 font-normal">(opcional)</span></label>
+                    <input type="number" step="1" min="0" id="sales-count" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md">
+                    <p class="mt-1 text-xs text-gray-500">Preenchido, habilita o ticket médio.</p>
+                </div>
+                <div id="form-warning" class="hidden p-3 rounded-md bg-yellow-50 border border-yellow-300 text-xs text-yellow-800"></div>
                  <div class="items-center pt-3 text-center">
                     <button type="submit" id="save-button" class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600">Salvar</button>
                     <button type="button" id="cancel-button" class="px-4 py-2 bg-gray-300 rounded-md ml-2 hover:bg-gray-400" onclick="closeModal()">Cancelar</button>
@@ -229,10 +261,10 @@
     </div>
 
     <!-- Modal de Restauração de Backup -->
-    <div id="restore-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-        <div class="relative top-16 mx-auto p-5 border w-11/12 max-w-md shadow-lg rounded-md bg-white">
-            <h3 class="text-lg text-center leading-6 font-medium text-gray-900">Restaurar Backup</h3>
-            <p id="restore-summary" class="mt-3 text-sm text-gray-600"></p>
+    <div id="restore-modal" class="modal-overlay bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="modal-caixa p-5 border max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <h3 class="text-lg text-center leading-6 font-medium text-gray-900 dark:text-gray-100">Restaurar Backup</h3>
+            <p id="restore-summary" class="mt-3 text-sm text-gray-600 dark:text-gray-300"></p>
             <div class="mt-5 space-y-3">
                 <div>
                     <button onclick="confirmRestore('merge')" class="w-full px-4 py-3 bg-green-600 text-white rounded-md font-medium hover:bg-green-700">Mesclar (recomendado)</button>
@@ -247,762 +279,96 @@
         </div>
     </div>
 
-    <!-- Aviso em tela (substitui alert, que é bloqueado em navegadores de apps) -->
-    <div id="toast" class="fixed bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:w-96 sm:-ml-48 z-50 hidden px-4 py-3 rounded-lg shadow-lg text-sm text-white"></div>
-
-    <script>
-        // #############################################################
-        // # 1. GERENCIAMENTO DE DADOS E ESTADO
-        // #############################################################
-        
-        let financialData = [];
-        let pendingBackup = null;
-
-        const initialData = [
-            { month: 'Set/2024', cash: 29378.76, card: 84601.14, pix: 19906.80, ifood: 2254.60, expenses: 86227.97 },
-            { month: 'Out/2024', cash: 34786.49, card: 102718.10, pix: 28953.75, ifood: 2057.33, expenses: 117825.87 },
-            { month: 'Nov/2024', cash: 47721.47, card: 115894.53, pix: 42601.93, ifood: 2037.60, expenses: 144485.17 },
-            { month: 'Dez/2024', cash: 88992.34, card: 241385.57, pix: 76599.20, ifood: 3229.63, expenses: 222718.65 },
-            { month: 'Jan/2025', cash: 101984.24, card: 172228.62, pix: 62460.42, ifood: 3659.05, expenses: 339583.78 },
-            { month: 'Fev/2025', cash: 77208.06, card: 109180.81, pix: 61468.49, ifood: 3430.04, expenses: 188428.35 },
-            { month: 'Mar/2025', cash: 63890.25, card: 131323.97, pix: 55000.80, ifood: 2365.74, expenses: 163185.99 },
-            { month: 'Abr/2025', cash: 45548.77, card: 88766.42, pix: 36495.25, ifood: 3458.16, expenses: 120762.56 },
-        ];
-
-        let toastTimer;
-        function showToast(message, type = 'info') {
-            const el = document.getElementById('toast');
-            if (!el) return;
-            const bg = type === 'error' ? 'bg-red-600' : (type === 'success' ? 'bg-green-600' : 'bg-gray-800');
-            el.textContent = message;
-            el.className = `fixed bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:w-96 sm:-ml-48 z-50 px-4 py-3 rounded-lg shadow-lg text-sm text-white ${bg}`;
-            clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => el.classList.add('hidden'), 6000);
-        }
-
-        // Aceita número, "1234.56" ou "1.234,56" (formato pt-BR vindo de arquivos editados à mão).
-        function toNumber(value) {
-            if (typeof value === 'number') return isFinite(value) ? value : 0;
-            if (value === null || value === undefined) return 0;
-            let str = String(value).trim().replace(/[^\d,.-]/g, '');
-            if (str.indexOf(',') !== -1) {
-                str = str.replace(/\./g, '').replace(',', '.'); // 1.234,56 -> 1234.56
-            } else if ((str.match(/\./g) || []).length > 1) {
-                str = str.replace(/\./g, ''); // 1.234.567 só pode ser separador de milhar
-            }
-            const parsed = parseFloat(str);
-            return isFinite(parsed) ? parsed : 0;
-        }
-
-        function normalizeRecord(item) {
-            const source = item || {};
-            return {
-                month: String(source.month === undefined || source.month === null ? '' : source.month).trim(),
-                cash: toNumber(source.cash),
-                card: toNumber(source.card),
-                pix: toNumber(source.pix),
-                ifood: toNumber(source.ifood),
-                expenses: toNumber(source.expenses)
-            };
-        }
-
-        function saveData() {
-            try {
-                localStorage.setItem('financialReportData', JSON.stringify(financialData));
-                return true;
-            } catch (err) {
-                // Acontece em aba anônima, com armazenamento bloqueado ou memória cheia.
-                // O aviso é repetido a cada tentativa de propósito: sem ele o usuário
-                // acha que salvou e perde tudo ao recarregar a página.
-                showToast('O navegador bloqueou o armazenamento (aba anônima ou memória cheia). Os dados estão na tela, mas somem ao recarregar — use o botão Backup para guardar o arquivo.', 'error');
-                return false;
-            }
-        }
-
-        function loadData() {
-            let savedData = null;
-            try {
-                savedData = localStorage.getItem('financialReportData');
-            } catch (err) {
-                savedData = null;
-            }
-
-            let data = initialData;
-            let savedDataValid = false;
-            if (savedData) {
-                try {
-                    const parsed = JSON.parse(savedData);
-                    if (Array.isArray(parsed)) {
-                        data = parsed;
-                        savedDataValid = true;
-                    }
-                } catch (err) { /* tratado abaixo */ }
-                if (!savedDataValid) {
-                    showToast('Os dados salvos estavam corrompidos; carregando os dados iniciais.', 'error');
-                }
-            }
-
-            financialData = sortData(data.map(normalizeRecord));
-            // Regrava também quando o conteúdo salvo era inválido, para não repetir o erro.
-            if (!savedDataValid) saveData();
-        }
-
-        const MONTH_MAP = { jan:1, fev:2, mar:3, abr:4, mai:5, maio:5, jun:6, jul:7, ago:8, set:9, out:10, nov:11, dez:12 };
-
-        // Meses fora do padrão ("maio/25", "MAR/2025") continuam ordenando corretamente;
-        // os irreconhecíveis vão para o fim em vez de gerar NaN e bagunçar a lista.
-        function monthSortKey(monthStr) {
-            const parts = String(monthStr || '').trim().split('/');
-            const name = (parts[0] || '').trim().toLowerCase().replace(/\./g, '');
-            let year = parseInt(parts[1], 10);
-            const month = MONTH_MAP[name] || MONTH_MAP[name.slice(0, 3)];
-            // typeof: nomes como "constructor" herdam valores do protótipo e voltariam NaN.
-            if (typeof month !== 'number' || isNaN(year)) return Number.MAX_SAFE_INTEGER;
-            if (year < 100) year += 2000;
-            return year * 12 + month;
-        }
-
-        function sortData(data) {
-            return data.slice().sort((a, b) => monthSortKey(a.month) - monthSortKey(b.month));
-        }
-        
-        // #############################################################
-        // # 2. LÓGICA DO MODAL E AÇÕES CRUD
-        // #############################################################
-
-        const modal = document.getElementById('data-modal');
-        const form = document.getElementById('data-form');
-
-        function openModal(index = null) {
-            form.reset();
-            document.getElementById('edit-index').value = '';
-            if (index !== null) {
-                document.getElementById('modal-title').textContent = 'Editar Mês';
-                const data = financialData[index];
-                document.getElementById('month').value = data.month;
-                document.getElementById('cash').value = data.cash;
-                document.getElementById('card').value = data.card;
-                document.getElementById('pix').value = data.pix;
-                document.getElementById('ifood').value = data.ifood;
-                document.getElementById('expenses').value = data.expenses;
-                document.getElementById('edit-index').value = index;
-            } else {
-                document.getElementById('modal-title').textContent = 'Adicionar Novo Mês';
-            }
-            modal.classList.remove('hidden');
-        }
-
-        function closeModal() { modal.classList.add('hidden'); }
-
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const newData = normalizeRecord({
-                month: document.getElementById('month').value,
-                cash: document.getElementById('cash').value,
-                card: document.getElementById('card').value,
-                pix: document.getElementById('pix').value,
-                ifood: document.getElementById('ifood').value,
-                expenses: document.getElementById('expenses').value,
-            });
-
-            if (!newData.month) {
-                showToast('Informe o mês (ex: Mai/2025).', 'error');
-                return;
-            }
-
-            const editIndex = document.getElementById('edit-index').value;
-            let message = `${newData.month} adicionado.`;
-
-            if (editIndex !== '') {
-                financialData[Number(editIndex)] = newData;
-                message = `${newData.month} atualizado.`;
-            } else {
-                // Evita dois registros do mesmo mês, que fazem os botões de editar/excluir
-                // agirem sempre na primeira ocorrência.
-                const duplicate = financialData.findIndex(d => d.month.toLowerCase() === newData.month.toLowerCase());
-                if (duplicate !== -1) {
-                    financialData[duplicate] = newData;
-                    message = `${newData.month} já existia e foi atualizado.`;
-                } else {
-                    financialData.push(newData);
-                }
-            }
-
-            financialData = sortData(financialData);
-            // A tela é atualizada mesmo se a gravação falhar (o saveData avisa o usuário).
-            const saved = saveData();
-            updateDashboard(financialData);
-            closeModal();
-            // Se a gravação falhou, o aviso do saveData é mais importante e fica na tela.
-            if (saved) showToast(message, 'success');
-        });
-
-        function deleteData(index) {
-            if (confirm(`Tem certeza que deseja excluir os dados de ${financialData[index].month}?`)) {
-                financialData.splice(index, 1);
-                saveData();
-                updateDashboard(financialData);
-            }
-        }
-        
-        // #############################################################
-        // # 3. FUNÇÕES DE EXPORTAÇÃO
-        // #############################################################
-        
-        function exportDataToCSV() {
-            if (financialData.length === 0) {
-                showToast('Não há dados para exportar.', 'error');
-                return;
-            }
-            const headers = ['Mês', 'Entrada (Dinheiro)', 'Entrada (Cartão)', 'Entrada (Pix)', 'Entrada (iFood)', 'Entrada Bruta', 'Saídas (Despesas)', 'Lucro', 'Margem (%)'];
-            const rows = financialData.map(item => {
-                const grossIncome = getGrossIncome(item);
-                const profit = grossIncome - item.expenses;
-                const margin = grossIncome > 0 ? (profit / grossIncome * 100).toFixed(1) : '0.0';
-                return [`"${item.month}"`, item.cash, item.card, item.pix, item.ifood, grossIncome, item.expenses, profit, margin].join(';');
-            });
-            const csvContent = [headers.join(';'), ...rows].join('\n');
-            const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'relatorio_financeiro.csv';
-            document.body.appendChild(link);
-            link.click();
-            setTimeout(() => {
-                if (link.parentNode) link.parentNode.removeChild(link);
-                URL.revokeObjectURL(url);
-            }, 5000);
-        }
-
-        async function exportToPDF() {
-            if (!window.jspdf || typeof html2canvas === 'undefined' || typeof Chart === 'undefined') {
-                showToast('As bibliotecas de PDF não carregaram. Verifique a conexão e recarregue a página.', 'error');
-                return;
-            }
-
-            const btn = document.getElementById('pdf-export-btn');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando...';
-
-            Chart.defaults.animation = false;
-            if (revenueExpensesChart) revenueExpensesChart.update();
-            if (paymentTrendsChart) paymentTrendsChart.update();
-
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            const dataToExport = financialData;
-
-            doc.setFontSize(18);
-            doc.text('Relatório Financeiro Executivo', 14, 22);
-            doc.setFontSize(11);
-            doc.setTextColor(100);
-
-            const totalRevenue = dataToExport.reduce((sum, item) => sum + getGrossIncome(item), 0);
-            const totalExpenses = dataToExport.reduce((sum, item) => sum + item.expenses, 0);
-            doc.text(`Período: ${dataToExport.length} meses | Receita Total: ${formatCurrency(totalRevenue)} | Despesa Total: ${formatCurrency(totalExpenses)}`, 14, 30);
-            
-            const revenueCard = document.getElementById('revenue-expenses-card');
-            const trendsCard = document.getElementById('payment-trends-card');
-            
-            const canvasRevenue = await html2canvas(revenueCard, { scale: 2 });
-            const imgDataRevenue = canvasRevenue.toDataURL('image/png');
-            
-            const canvasTrends = await html2canvas(trendsCard, { scale: 2 });
-            const imgDataTrends = canvasTrends.toDataURL('image/png');
-
-            doc.addImage(imgDataRevenue, 'PNG', 14, 40, 180, 90);
-            doc.addImage(imgDataTrends, 'PNG', 14, 135, 180, 90);
-            
-            doc.addPage();
-            
-            doc.setFontSize(14);
-            doc.text('Detalhamento Mensal', 14, 22);
-            let y = 30;
-            const headers = ['Mês', 'Receita', 'Despesa', 'Lucro', 'Margem'];
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'bold');
-            doc.text(headers[0], 14, y); doc.text(headers[1], 40, y); doc.text(headers[2], 80, y); doc.text(headers[3], 120, y); doc.text(headers[4], 160, y);
-            y += 7;
-            
-            doc.setFont(undefined, 'normal');
-            doc.text(headers[0], 14, y); // Repaint hack if needed
-            
-            dataToExport.forEach(item => {
-                const gross = getGrossIncome(item);
-                const profit = gross - item.expenses;
-                const margin = gross > 0 ? `${((profit / gross) * 100).toFixed(1)}%` : '0.0%';
-                
-                doc.text(item.month, 14, y); doc.text(formatCurrency(gross), 40, y); doc.text(formatCurrency(item.expenses), 80, y); doc.text(formatCurrency(profit), 120, y); doc.text(margin, 160, y);
-                y += 7;
-            });
-            
-            doc.save('relatorio_executivo.pdf');
-
-            Chart.defaults.animation = true;
-            if (revenueExpensesChart) revenueExpensesChart.update();
-            if (paymentTrendsChart) paymentTrendsChart.update();
-
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-file-pdf mr-2"></i> PDF';
-        }
-        
-        // #############################################################
-        // # 4. FILTRAGEM E RENDERIZAÇÃO DO DASHBOARD
-        // #############################################################
-        let revenueExpensesChart, profitMarginChart, paymentMethodsChart, paymentTrendsChart;
-
-        function formatCurrency(value) { return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
-        
-        function getGrossIncome(item) { return item.cash + item.card + item.pix + item.ifood; }
-
-        function getProfit(item) { return getGrossIncome(item) - item.expenses; }
-        
-        function toggleFilterDropdown() { document.getElementById('filter-dropdown').classList.toggle('hidden'); }
-
-        window.onclick = function(event) {
-          if (!event.target.closest('#multi-month-filter')) {
-            const dropdown = document.getElementById('filter-dropdown');
-            if (!dropdown.classList.contains('hidden')) { dropdown.classList.add('hidden'); }
-          }
-        }
-        
-        function populateMonthCheckboxes() {
-            const container = document.getElementById('month-checkboxes');
-            container.innerHTML = `<div class="px-4 py-2"><label class="inline-flex items-center"><input type="checkbox" id="select-all-months" onchange="toggleAllMonths(this.checked)" class="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded" checked><span class="ml-2 text-sm text-gray-700">Selecionar Todos</span></label></div><div class="border-t border-gray-200"></div>`;
-            financialData.forEach(item => {
-                container.innerHTML += `<div class="px-4 py-2"><label class="inline-flex items-center"><input type="checkbox" class="month-checkbox form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded" value="${item.month}" checked><span class="ml-2 text-sm text-gray-700">${item.month}</span></label></div>`;
-            });
-        }
-
-        function toggleAllMonths(checked) { document.querySelectorAll('.month-checkbox').forEach(c => c.checked = checked); }
-        
-        function filterDashboard() {
-            const selectedMonths = Array.from(document.querySelectorAll('.month-checkbox:checked')).map(cb => cb.value);
-            const dataToRender = financialData.filter(d => selectedMonths.includes(d.month));
-            updateDashboard(dataToRender);
-            toggleFilterDropdown(); 
-        }
-
-        function calculateTrend(fullData, currentData, metricFn) {
-            const currentPeriodValue = currentData.reduce((sum, item) => sum + metricFn(item), 0);
-
-            if (currentData.length === 0 || currentData.length === fullData.length) {
-                return { value: currentPeriodValue, change: 0 };
-            }
-
-            const firstMonthIndex = fullData.findIndex(d => d.month === currentData[0].month);
-            const previousPeriodStartIndex = Math.max(0, firstMonthIndex - currentData.length);
-            const previousPeriodData = fullData.slice(previousPeriodStartIndex, firstMonthIndex);
-
-            if (previousPeriodData.length === 0) {
-                 return { value: currentPeriodValue, change: 0 };
-            }
-
-            const previousPeriodValue = previousPeriodData.reduce((sum, item) => sum + metricFn(item), 0);
-            
-            if (previousPeriodValue === 0) {
-                 return { value: currentPeriodValue, change: currentPeriodValue > 0 ? 100 : 0 };
-            }
-
-            const change = ((currentPeriodValue - previousPeriodValue) / previousPeriodValue) * 100;
-            return { value: currentPeriodValue, change: change };
-        }
-        
-        function updateDashboard(dataToRender) {
-            populateMonthCheckboxes();
-            
-            // Calculate KPIs with Trends
-            const revenueTrend = calculateTrend(financialData, dataToRender, getGrossIncome);
-            const expensesTrend = calculateTrend(financialData, dataToRender, item => item.expenses);
-            const profitTrend = calculateTrend(financialData, dataToRender, getProfit);
-            const margin = revenueTrend.value > 0 ? (profitTrend.value / revenueTrend.value * 100) : 0;
-
-            document.getElementById('header-stats').innerHTML = `<div class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium">Atualizado: ${new Date().toLocaleDateString('pt-BR')}</div><div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">Período: ${dataToRender.length} mes(es)</div><div class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium">Vendas Totais: ${formatCurrency(revenueTrend.value)}</div>`;
-            
-            const renderTrend = (trend, positiveUp = true) => {
-                if(trend.change === 0) return '';
-                const isPositive = positiveUp ? trend.change > 0 : trend.change < 0;
-                return `
-                    <span class="${isPositive ? 'text-green-600' : 'text-red-600'} text-sm font-medium flex items-center">
-                        <i class="fas ${trend.change > 0 ? 'fa-arrow-up' : 'fa-arrow-down'} mr-1"></i>
-                        ${Math.abs(trend.change).toFixed(1)}%
-                    </span>`;
-            };
-
-            document.getElementById('summary-cards').innerHTML = `
-                <div class="bg-white rounded-lg shadow p-6"><p class="text-sm text-gray-500">Receita Total</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold">${formatCurrency(revenueTrend.value)}</p>${renderTrend(revenueTrend)}</div><p class="text-xs text-gray-400">vs. período anterior</p></div>
-                <div class="bg-white rounded-lg shadow p-6"><p class="text-sm text-gray-500">Despesas Totais</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold">${formatCurrency(expensesTrend.value)}</p>${renderTrend(expensesTrend, false)}</div><p class="text-xs text-gray-400">vs. período anterior</p></div>
-                <div class="bg-white rounded-lg shadow p-6"><p class="text-sm text-gray-500">Lucro Líquido</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold">${formatCurrency(profitTrend.value)}</p>${renderTrend(profitTrend)}</div><p class="text-xs text-gray-400">vs. período anterior</p></div>
-                <div class="bg-white rounded-lg shadow p-6"><p class="text-sm text-gray-500">Margem Média</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold">${margin.toFixed(1)}%</p></div><p class="text-xs text-gray-400">no período selecionado</p></div>`;
-
-            const tbody = document.getElementById('main-table-body');
-            tbody.innerHTML = '';
-            dataToRender.forEach((item) => {
-                const originalIndex = financialData.findIndex(d => d.month === item.month);
-                const grossIncome = getGrossIncome(item);
-                const profit = grossIncome - item.expenses;
-                const margin = grossIncome > 0 ? (profit / grossIncome * 100) : 0;
-                tbody.innerHTML += `<tr><td class="px-6 py-4 text-sm font-medium text-gray-900">${item.month}</td><td class="px-6 py-4 text-sm text-gray-500">${formatCurrency(grossIncome)}</td><td class="px-6 py-4 text-sm text-gray-500">${formatCurrency(item.expenses)}</td><td class="px-6 py-4 text-sm font-medium ${profit < 0 ? 'text-red-600' : 'text-green-600'}">${formatCurrency(profit)}</td><td class="px-6 py-4 text-sm font-medium ${margin < 10 ? 'text-red-600' : 'text-green-600'}">${margin.toFixed(1)}%</td><td class="px-6 py-4 text-sm font-medium"><button onclick="openModal(${originalIndex})" class="text-indigo-600 hover:text-indigo-900 mr-3"><i class="fas fa-edit"></i></button><button onclick="deleteData(${originalIndex})" class="text-red-600 hover:text-red-900"><i class="fas fa-trash"></i></button></td></tr>`;
-            });
-            
-            updateCharts(dataToRender);
-            populateHighlights(dataToRender);
-            generateDynamicInsights(dataToRender, revenueTrend);
-            populateMonthTabs(dataToRender);
-            if(dataToRender.length > 0) {
-                 const firstTab = document.querySelector('.month-tab');
-                 showMonthAnalysis(firstTab, dataToRender[0].month);
-            }
-        }
-
-        // Nova seção de configuração de gráficos
-        const chartColors = {
-            blue: '#3B82F6',
-            red: '#EF4444',
-            green: '#10B981',
-            purple: '#8B5CF6',
-            orange: '#F59E0B',
-            grid: '#e5e7eb',
-            text: '#6b7280',
-            tooltip: '#111827'
-        };
-
-        // As bibliotecas vêm de CDN. Em conexão móvel lenta, com economia de dados
-        // ou bloqueador de anúncios elas podem não carregar — sem esta proteção o
-        // erro interrompe o script e a página inteira (tabela, adicionar, backup)
-        // deixa de funcionar.
-        const chartsAvailable = typeof Chart !== 'undefined';
-
-        if (chartsAvailable) {
-            Chart.defaults.font.family = "'Segoe UI', 'Roboto', 'sans-serif'";
-            Chart.defaults.plugins.legend.position = 'bottom';
-            Chart.defaults.plugins.tooltip.backgroundColor = chartColors.tooltip;
-            Chart.defaults.plugins.tooltip.titleFont = { size: 14, weight: 'bold' };
-            Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
-            Chart.defaults.plugins.tooltip.padding = 10;
-            Chart.defaults.plugins.tooltip.cornerRadius = 4;
-            if (typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
-        }
-
-        function updateCharts(data) {
-            if (!chartsAvailable) return;
-            const labels = data.map(d => d.month);
-            const ctx = document.getElementById('profitMarginChart').getContext('2d');
-            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
-            gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
-
-            if (revenueExpensesChart) revenueExpensesChart.destroy();
-            revenueExpensesChart = new Chart(document.getElementById('revenueExpensesChart').getContext('2d'), {
-                type: 'bar',
-                data: { labels, datasets: [ { label: 'Receita Bruta', data: data.map(d => getGrossIncome(d)), backgroundColor: chartColors.blue, borderRadius: 4 }, { label: 'Despesas', data: data.map(d => d.expenses), backgroundColor: chartColors.red, borderRadius: 4 } ] }, 
-                options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false } }, y: { grid: { color: chartColors.grid } } }, plugins: { datalabels: { display: false } } }
-            });
-
-            if (profitMarginChart) profitMarginChart.destroy();
-            profitMarginChart = new Chart(ctx, {
-                type: 'line',
-                data: { labels, datasets: [{ label: 'Margem de Lucro (%)', data: data.map(d => { const gross = getGrossIncome(d); return gross > 0 ? ((gross - d.expenses) / gross * 100) : 0; }), borderColor: chartColors.green, backgroundColor: gradient, fill: true, tension: 0.4, pointBackgroundColor: chartColors.green }] }, 
-                options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false } }, y: { grid: { color: chartColors.grid } } }, plugins: { datalabels: { display: false } } }
-            });
-            
-            if (paymentMethodsChart) paymentMethodsChart.destroy();
-            paymentMethodsChart = new Chart(document.getElementById('paymentMethodsChart').getContext('2d'), {
-                type: 'doughnut',
-                data: { labels: ['Dinheiro', 'Cartão', 'Pix', 'iFood'], datasets: [{ data: [ data.reduce((s, d) => s + d.cash, 0), data.reduce((s, d) => s + d.card, 0), data.reduce((s, d) => s + d.pix, 0), data.reduce((s, d) => s + d.ifood, 0) ], backgroundColor: [chartColors.green, chartColors.blue, chartColors.purple, chartColors.orange], spacing: 4, borderWidth: 0 }] }, 
-                options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { datalabels: { 
-                    formatter: (value, ctx) => { let sum = ctx.chart.getDatasetMeta(0).total; if (sum === 0) return '0%'; let percentage = (value * 100 / sum).toFixed(1) + '%'; return percentage; },
-                    color: '#fff', font: { weight: 'bold' }
-                }}}
-            });
-            
-            if (paymentTrendsChart) paymentTrendsChart.destroy();
-            paymentTrendsChart = new Chart(document.getElementById('paymentTrendsChart').getContext('2d'), {
-                type: 'line',
-                data: { labels, datasets: [ { label: 'Dinheiro', data: data.map(d => d.cash), borderColor: chartColors.green, tension: 0.4 }, { label: 'Cartão', data: data.map(d => d.card), borderColor: chartColors.blue, tension: 0.4 }, { label: 'Pix', data: data.map(d => d.pix), borderColor: chartColors.purple, tension: 0.4 }, { label: 'iFood', data: data.map(d => d.ifood), borderColor: chartColors.orange, tension: 0.4 } ] }, 
-                options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false } }, y: { grid: { color: chartColors.grid } } }, plugins: { datalabels: { display: false } } }
-            });
-        }
-        
-        function populateHighlights(data) {
-            const section = document.getElementById('highlights-section');
-            if (data.length === 0) {
-                section.innerHTML = '<p class="text-center text-gray-500 col-span-4">Selecione um período para ver os destaques.</p>'; return;
-            }
-            let bestMonth = data.reduce((p, c) => (getProfit(c)) > (getProfit(p)) ? c : p);
-            let worstMonth = data.reduce((p, c) => (getProfit(c)) < (getProfit(p)) ? c : p);
-            let highestRevenueMonth = data.reduce((p, c) => getGrossIncome(c) > getGrossIncome(p) ? c : p);
-            let bestMarginMonth = data.reduce((p,c) => (getProfit(c)/getGrossIncome(c)) > (getProfit(p)/getGrossIncome(p)) ? c : p);
-            const bestMarginValue = getGrossIncome(bestMarginMonth) > 0 ? (getProfit(bestMarginMonth)/getGrossIncome(bestMarginMonth) * 100) : 0;
-
-            section.innerHTML = `
-                <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500"> <p class="text-sm text-gray-500">Melhor Mês (Lucro)</p><p class="text-lg font-semibold">${bestMonth.month}</p><p class="text-sm text-green-600">${formatCurrency(getProfit(bestMonth))}</p></div>
-                <div class="bg-white rounded-lg shadow p-6 border-l-4 border-red-500"><p class="text-sm text-gray-500">Pior Mês (Lucro)</p><p class="text-lg font-semibold">${worstMonth.month}</p><p class="text-sm text-red-600">${formatCurrency(getProfit(worstMonth))}</p></div>
-                <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500"><p class="text-sm text-gray-500">Maior Receita</p><p class="text-lg font-semibold">${highestRevenueMonth.month}</p><p class="text-sm text-blue-600">${formatCurrency(getGrossIncome(highestRevenueMonth))}</p></div>
-                <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500"><p class="text-sm text-gray-500">Melhor Margem</p><p class="text-lg font-semibold">${bestMarginMonth.month}</p><p class="text-sm text-purple-600">${bestMarginValue.toFixed(1)}%</p></div>`;
-        }
-
-        function generateDynamicInsights(data, trend) {
-            const list = document.getElementById('insights-list');
-            list.innerHTML = '';
-
-            if (data.length < 1) {
-                list.innerHTML = '<li><i class="fas fa-info-circle mr-2 text-blue-500"></i> Selecione um período para gerar insights.</li>';
-                return;
-            }
-            
-            const bestMonth = data.reduce((p, c) => getProfit(c) > getProfit(p) ? c : p);
-            const paymentTotals = {
-                Dinheiro: data.reduce((s, d) => s + d.cash, 0),
-                Cartão: data.reduce((s, d) => s + d.card, 0),
-                Pix: data.reduce((s, d) => s + d.pix, 0),
-                iFood: data.reduce((s, d) => s + d.ifood, 0)
-            };
-            const dominantPayment = Object.keys(paymentTotals).reduce((a, b) => paymentTotals[a] > paymentTotals[b] ? a : b);
-            
-            // Insight 1: Best Month
-            list.innerHTML += `<li><i class="fas fa-check-circle mr-2 text-green-500"></i> O mês de maior destaque no período foi <strong>${bestMonth.month}</strong>, com um lucro de <strong>${formatCurrency(getProfit(bestMonth))}</strong>.</li>`;
-            
-            // Insight 2: Dominant Payment
-            list.innerHTML += `<li><i class="fas fa-check-circle mr-2 text-green-500"></i> <strong>${dominantPayment}</strong> foi o método de pagamento mais significativo, representando <strong>${formatCurrency(paymentTotals[dominantPayment])}</strong> em vendas.</li>`;
-            
-            // Insight 3: Trend
-            if (trend.change !== 0) {
-                 list.innerHTML += `<li><i class="fas fa-chart-line mr-2 text-blue-500"></i> A receita do período teve uma <strong>${trend.change > 0 ? 'alta' : 'baixa'} de ${Math.abs(trend.change).toFixed(1)}%</strong> em comparação com o período anterior.</li>`;
-            }
-
-            // Insight 4: Unprofitable months
-            const unprofitableMonths = data.filter(d => getProfit(d) < 0);
-            if (unprofitableMonths.length > 0) {
-                list.innerHTML += `<li><i class="fas fa-exclamation-triangle mr-2 text-red-500"></i> Atenção: O(s) mês(es) de <strong>${unprofitableMonths.map(m=>m.month).join(', ')}</strong> operou com prejuízo.</li>`;
-            }
-        }
-
-        function populateMonthTabs(data) {
-            const tabsContainer = document.getElementById('month-tabs');
-            tabsContainer.innerHTML = '';
-            data.forEach((item) => {
-                tabsContainer.innerHTML += `<button onclick="showMonthAnalysis(this, '${item.month}')" class="month-tab whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">${item.month}</button>`;
-            });
-        }
-        
-        function showMonthAnalysis(element, month) {
-            document.querySelectorAll('.month-tab').forEach(tab => tab.classList.remove('active'));
-            if(element) element.classList.add('active');
-            
-            const monthData = financialData.find(d => d.month === month);
-            const contentDiv = document.getElementById('monthAnalysisContent');
-            if(!monthData){ contentDiv.innerHTML = ''; return; }
-
-            const gross = getGrossIncome(monthData);
-            const profit = getProfit(monthData);
-            const margin = gross > 0 ? (profit / gross * 100) : 0;
-
-            // Gerar sugestões dinâmicas
-            let suggestions = '';
-            if (margin < 10 && profit > 0) {
-                suggestions = `<li><i class="fas fa-arrow-right text-yellow-500 mt-1 mr-2"></i><span>A margem de lucro está baixa. Analise os custos variáveis e a precificação para melhorá-la.</span></li>`;
-            } else if (profit <= 0) {
-                suggestions = `<li><i class="fas fa-arrow-right text-red-500 mt-1 mr-2"></i><span>Este mês operou com prejuízo. É crucial revisar todas as despesas e estratégias de venda imediatamente.</span></li>`;
-            } else if (margin > 35) {
-                 suggestions = `<li><i class="fas fa-arrow-right text-green-500 mt-1 mr-2"></i><span>Excelente margem de lucro! Identifique o que funcionou neste mês para replicar nos próximos.</span></li>`;
-            } else {
-                 suggestions = `<li><i class="fas fa-arrow-right text-blue-500 mt-1 mr-2"></i><span>O desempenho foi sólido. Continue monitorando os custos para manter a boa performance.</span></li>`;
-            }
-
-            const paymentBreakdown = `
-                <li class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Dinheiro</span><span class="font-medium">${formatCurrency(monthData.cash)}</span></li>
-                <li class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Cartão</span><span class="font-medium">${formatCurrency(monthData.card)}</span></li>
-                <li class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Pix</span><span class="font-medium">${formatCurrency(monthData.pix)}</span></li>
-                <li class="flex justify-between items-center py-2"><span class="text-gray-600">iFood</span><span class="font-medium">${formatCurrency(monthData.ifood)}</span></li>
-            `;
-
-            contentDiv.innerHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-800 mb-3">${monthData.month} - Resumo</h3>
-                        <div class="space-y-3">
-                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                                <span class="font-medium text-gray-700">Receita Bruta</span>
-                                <span class="font-bold text-blue-600">${formatCurrency(gross)}</span>
-                            </div>
-                             <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                                <span class="font-medium text-gray-700">Despesas</span>
-                                <span class="font-bold text-red-600">${formatCurrency(monthData.expenses)}</span>
-                            </div>
-                             <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                                <span class="font-medium text-gray-700">Lucro Líquido</span>
-                                <span class="font-bold ${profit > 0 ? 'text-green-600' : 'text-red-600'}">${formatCurrency(profit)}</span>
-                            </div>
-                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                                <span class="font-medium text-gray-700">Margem de Lucro</span>
-                                <span class="font-bold ${margin < 10 ? 'text-red-600' : (margin > 35 ? 'text-green-600' : 'text-gray-800')}">${margin.toFixed(1)}%</span>
-                            </div>
+    <!-- Modal de Taxas e Metas -->
+    <div id="config-modal" class="modal-overlay bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="modal-caixa p-5 border max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <h3 class="text-lg text-center leading-6 font-medium text-gray-900 dark:text-gray-100">Taxas e Metas</h3>
+            <form id="config-form" class="mt-4 space-y-4">
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-700">Taxas retidas</h4>
+                    <p class="text-xs text-gray-500 mb-2">Descontadas da receita para chegar ao valor que de fato cai na conta. Deixe em zero para o painel trabalhar só com a receita bruta.</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label for="cfg-taxa-cartao" class="block text-xs font-medium text-gray-700 dark:text-gray-300">Cartão (%)</label>
+                            <input type="number" step="0.01" min="0" max="100" id="cfg-taxa-cartao" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md">
+                        </div>
+                        <div>
+                            <label for="cfg-taxa-ifood" class="block text-xs font-medium text-gray-700 dark:text-gray-300">iFood (%)</label>
+                            <input type="number" step="0.01" min="0" max="100" id="cfg-taxa-ifood" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md">
                         </div>
                     </div>
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-800 mb-3">Detalhamento das Entradas</h3>
-                        <ul class="bg-gray-50 rounded-lg p-4">${paymentBreakdown}</ul>
-
-                        <h3 class="text-lg font-semibold text-gray-800 mt-6 mb-3">Sugestões</h3>
-                        <ul class="space-y-2">${suggestions}</ul>
+                </div>
+                <div class="pt-2 border-t border-gray-200">
+                    <h4 class="text-sm font-semibold text-gray-700">Metas mensais</h4>
+                    <p class="text-xs text-gray-500 mb-2">Zero desliga o acompanhamento.</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label for="cfg-meta-receita" class="block text-xs font-medium text-gray-700 dark:text-gray-300">Receita (R$)</label>
+                            <input type="number" step="0.01" min="0" id="cfg-meta-receita" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md">
+                        </div>
+                        <div>
+                            <label for="cfg-meta-margem" class="block text-xs font-medium text-gray-700 dark:text-gray-300">Margem (%)</label>
+                            <input type="number" step="0.1" min="0" max="100" id="cfg-meta-margem" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md">
+                        </div>
                     </div>
                 </div>
-            `;
-        }
+                <div class="items-center pt-3 text-center">
+                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Salvar</button>
+                    <button type="button" class="px-4 py-2 bg-gray-300 rounded-md ml-2 hover:bg-gray-400" onclick="fecharConfig()">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-        // #############################################################
-        // # 6. FUNÇÕES DE BACKUP (NOVO)
-        // #############################################################
+    <!-- Modal de confirmação genérico (alert/confirm são bloqueados em navegadores de apps) -->
+    <div id="confirm-modal" class="modal-overlay bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="modal-caixa p-5 border max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <h3 id="confirm-title" class="text-lg text-center leading-6 font-medium text-gray-900 dark:text-gray-100"></h3>
+            <p id="confirm-message" class="mt-3 text-sm text-gray-600 dark:text-gray-300 text-center"></p>
+            <div class="mt-5 space-y-2">
+                <button id="confirm-ok" class="w-full px-4 py-3 text-white rounded-md font-medium"></button>
+                <button onclick="fecharConfirmacao()" class="w-full px-4 py-3 bg-gray-200 text-gray-700 rounded-md font-medium hover:bg-gray-300">Cancelar</button>
+            </div>
+        </div>
+    </div>
 
-        async function exportBackup() {
-            if (financialData.length === 0) {
-                showToast('Não há dados para exportar.', 'error');
-                return;
-            }
 
-            const dataStr = JSON.stringify(financialData, null, 2);
-            const filename = `backup_financeiro_${new Date().toISOString().slice(0, 10)}.json`;
-            const blob = new Blob([dataStr], { type: 'application/json' });
+    <!-- Bloqueio por senha (item 49) -->
+    <div id="lock-modal" class="modal-overlay bg-gray-900 bg-opacity-90 hidden z-[60]">
+        <div class="modal-caixa p-6 border dark:border-gray-700 max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <h3 id="lock-title" class="text-lg text-center leading-6 font-medium text-gray-900 dark:text-gray-100"></h3>
+            <form id="lock-form" class="mt-4 space-y-3">
+                <div>
+                    <label for="lock-password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Senha</label>
+                    <input type="password" id="lock-password" autocomplete="current-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md" required>
+                </div>
+                <div id="lock-confirm-wrap" class="hidden">
+                    <label for="lock-password-2" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Repita a senha</label>
+                    <input type="password" id="lock-password-2" autocomplete="new-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md">
+                </div>
+                <p id="lock-error" class="hidden text-sm text-red-600"></p>
+                <p id="lock-hint" class="text-xs text-gray-500 dark:text-gray-400"></p>
+                <button type="submit" class="w-full px-4 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700">Continuar</button>
+            </form>
+        </div>
+    </div>
 
-            // No celular o compartilhamento nativo é bem mais confiável do que o
-            // download por link: permite salvar no Drive, Arquivos, WhatsApp etc.
-            try {
-                if (navigator.canShare && typeof File === 'function') {
-                    const file = new File([blob], filename, { type: 'application/json' });
-                    if (navigator.canShare({ files: [file] })) {
-                        await navigator.share({ files: [file], title: 'Backup Financeiro' });
-                        return;
-                    }
-                }
-            } catch (err) {
-                if (err && err.name === 'AbortError') return; // usuário cancelou
-                // qualquer outro erro: segue para o download tradicional
-            }
 
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-            link.rel = 'noopener';
-            // O link precisa estar no documento e a URL só pode ser liberada depois
-            // que o download começa — revogar na hora trunca o arquivo no mobile.
-            document.body.appendChild(link);
-            link.click();
-            setTimeout(() => {
-                if (link.parentNode) link.parentNode.removeChild(link);
-                URL.revokeObjectURL(url);
-            }, 5000);
-            showToast(`Backup gerado: ${filename}`, 'success');
-        }
+    <!-- Avisos e desfazer: ancorados ao rodapé da área realmente visível.
+         Com position:fixed e bottom, no celular eles caíam abaixo da tela. -->
+    <div id="avisos-fixos">
+        <div id="undo-bar" class="aviso bg-gray-900 hidden">
+            <span id="undo-text" class="flex-1"></span>
+            <button onclick="desfazerUltimaAcao()" class="shrink-0 px-3 py-1 rounded bg-white text-gray-900 font-semibold">Desfazer</button>
+        </div>
+        <div id="toast" class="aviso hidden"></div>
+    </div>
 
-        function importBackup(input) {
-            const file = input.files && input.files[0];
-            // Libera o input imediatamente para que o mesmo arquivo possa ser
-            // escolhido de novo, inclusive quando a leitura falha.
-            input.value = '';
-            if (!file) return;
-
-            const reader = new FileReader();
-
-            reader.onerror = function() {
-                showToast('Não foi possível ler o arquivo. Se ele está no Google Drive ou iCloud, baixe para o aparelho antes de restaurar.', 'error');
-            };
-
-            reader.onload = function(e) {
-                let json;
-                try {
-                    json = JSON.parse(e.target.result);
-                } catch (err) {
-                    showToast('O arquivo escolhido não é um backup válido (não é JSON). Selecione o arquivo backup_financeiro_....json.', 'error');
-                    return;
-                }
-
-                if (!Array.isArray(json)) {
-                    showToast('Formato inválido: o arquivo deve conter uma lista de meses.', 'error');
-                    return;
-                }
-                if (!json.every(item => item && typeof item === 'object' && 'month' in item)) {
-                    showToast('Formato inválido: os dados não correspondem ao modelo financeiro.', 'error');
-                    return;
-                }
-
-                const records = json.map(normalizeRecord).filter(r => r.month);
-                if (records.length === 0) {
-                    showToast('O backup não contém nenhum registro válido.', 'error');
-                    return;
-                }
-
-                openRestoreModal(records);
-            };
-
-            reader.readAsText(file);
-        }
-
-        function openRestoreModal(records) {
-            pendingBackup = records;
-            const existing = new Set(financialData.map(d => d.month.toLowerCase()));
-            const novos = records.filter(r => !existing.has(r.month.toLowerCase())).length;
-            const repetidos = records.length - novos;
-
-            document.getElementById('restore-summary').innerHTML =
-                `O arquivo tem <strong>${records.length}</strong> registro(s): <strong>${novos}</strong> mês(es) que ainda não estão aqui e <strong>${repetidos}</strong> já existente(s). Neste aparelho há <strong>${financialData.length}</strong> mês(es) salvos.`;
-            document.getElementById('restore-modal').classList.remove('hidden');
-        }
-
-        function closeRestoreModal() {
-            pendingBackup = null;
-            document.getElementById('restore-modal').classList.add('hidden');
-        }
-
-        function confirmRestore(mode) {
-            if (!pendingBackup) { closeRestoreModal(); return; }
-
-            const backup = pendingBackup;
-            let added = 0;
-            let updated = 0;
-            let message;
-
-            if (mode === 'replace') {
-                financialData = sortData(backup);
-                message = `Backup restaurado: ${backup.length} registro(s).`;
-            } else {
-                const merged = financialData.slice();
-                backup.forEach(record => {
-                    const index = merged.findIndex(d => d.month.toLowerCase() === record.month.toLowerCase());
-                    if (index === -1) {
-                        merged.push(record);
-                        added++;
-                    } else {
-                        merged[index] = record;
-                        updated++;
-                    }
-                });
-                financialData = sortData(merged);
-                message = `Backup mesclado: ${added} mês(es) novo(s) e ${updated} atualizado(s).`;
-            }
-
-            const saved = saveData();
-            updateDashboard(financialData);
-            closeRestoreModal();
-            if (saved) showToast(message, 'success');
-        }
-        
-        // #############################################################
-        // # 7. INICIALIZAÇÃO
-        // #############################################################
-
-        document.addEventListener('DOMContentLoaded', () => {
-            loadData();
-            updateDashboard(financialData);
-            if(financialData.length > 0) {
-                 const firstTab = document.querySelector('.month-tab');
-                 showMonthAnalysis(firstTab, financialData[0].month);
-            }
-        });
-    </script>
+    <script src="vendor/chart.umd.js"></script>
+    <script src="vendor/chartjs-plugin-datalabels.min.js"></script>
+    <script src="vendor/jspdf.umd.min.js"></script>
+    <script src="vendor/html2canvas.min.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
