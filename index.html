@@ -61,15 +61,19 @@
         <header class="mb-8">
             <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
                 <div>
-                    <h1 class="text-3xl font-bold text-gray-800">Relatório Financeiro</h1>
-                    <p class="text-gray-600">Conveniência - Dinâmico</p>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Relatório Financeiro</h1>
+                    <p class="text-sm sm:text-base text-gray-600">Conveniência - Dinâmico</p>
                 </div>
-                
-                <div class="flex flex-col sm:flex-row flex-wrap items-center gap-2">
+
+                <!-- No celular os botões formam uma grade de 4 colunas: filtro e
+                     "Adicionar" ocupam a linha inteira e as quatro ações
+                     secundárias cabem numa única faixa. A partir de sm volta a
+                     ser a linha horizontal de sempre. -->
+                <div class="w-full xl:w-auto grid grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:items-center">
                      <!-- Filtro de Mês -->
-                     <div class="relative inline-block text-left" id="multi-month-filter">
+                     <div class="col-span-4 relative text-left sm:col-auto sm:inline-block" id="multi-month-filter">
                         <div>
-                            <button type="button" onclick="toggleFilterDropdown()" class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none">
+                            <button type="button" onclick="toggleFilterDropdown()" class="inline-flex items-center justify-center w-full rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none">
                                 Analisar Período
                                 <svg class="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                     <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -86,15 +90,16 @@
                         </div>
                     </div>
 
-                    <!-- Botões de Ação Principais -->
-                    <button onclick="openModal()" class="bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-700 flex items-center"><i class="fas fa-plus mr-2"></i> Adicionar</button>
-                    <button onclick="exportDataToCSV()" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center"><i class="fas fa-file-csv mr-2"></i> CSV</button>
-                    <button onclick="exportToPDF()" id="pdf-export-btn" class="bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-700 flex items-center"><i class="fas fa-file-pdf mr-2"></i> PDF</button>
-                    
-                    <!-- Botões de Backup (NOVO) -->
+                    <!-- Ação principal: linha inteira no celular -->
+                    <button onclick="openModal()" class="col-span-4 sm:col-auto bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-700 flex items-center justify-center"><i class="fas fa-plus mr-2"></i> Adicionar</button>
+
+                    <!-- Ações secundárias: quatro colunas no celular, ícone acima do rótulo -->
+                    <button onclick="exportDataToCSV()" class="bg-blue-600 text-white px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-700 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-0"><i class="fas fa-file-csv sm:mr-2"></i> CSV</button>
+                    <button onclick="exportToPDF()" id="pdf-export-btn" class="bg-red-600 text-white px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-red-700 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-0"><i class="fas fa-file-pdf sm:mr-2"></i> PDF</button>
+
                     <div class="h-6 w-px bg-gray-300 mx-1 hidden sm:block"></div>
-                    <button onclick="exportBackup()" class="bg-gray-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 flex items-center" title="Baixar Backup"><i class="fas fa-file-export mr-2"></i> Backup</button>
-                    <label for="backup-input" class="bg-gray-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 flex items-center cursor-pointer" title="Restaurar Backup"><i class="fas fa-file-import mr-2"></i> Restaurar</label>
+                    <button onclick="exportBackup()" class="bg-gray-600 text-white px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-700 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-0" title="Baixar Backup"><i class="fas fa-file-export sm:mr-2"></i> Backup</button>
+                    <label for="backup-input" class="bg-gray-600 text-white px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-700 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-0 cursor-pointer" title="Restaurar Backup"><i class="fas fa-file-import sm:mr-2"></i> Restaurar</label>
                     <input type="file" id="backup-input" class="visually-hidden-file" onchange="importBackup(this)">
                 </div>
             </div>
