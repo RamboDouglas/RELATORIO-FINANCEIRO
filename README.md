@@ -45,14 +45,18 @@ Cada registro guarda seis campos:
 
 | Campo | Descrição |
 |---|---|
-| **Mês** | Texto no formato `Mai/2025` |
+| **Mês** | Escolhido em dois seletores (mês e ano), sem digitação livre |
 | **Entrada (Dinheiro)** | Vendas recebidas em espécie |
 | **Entrada (Cartão)** | Vendas recebidas em cartão |
 | **Entrada (Pix)** | Vendas recebidas via Pix |
 | **Entrada (iFood)** | Vendas pelo iFood |
 | **Saídas (Despesas)** | Total de despesas do mês |
+| **Mercadoria / CMV** | Opcional. Parte das despesas que é compra de mercadoria |
+| **Nº de vendas** | Opcional. Preenchido, habilita o ticket médio |
 
-Receita bruta, lucro e margem **não são digitados** — são calculados a partir desses seis campos.
+Receita bruta, lucro, margem, ticket médio e margem de contribuição **não são digitados** — são calculados.
+
+Cada registro guarda ainda a data da última alteração e, quando os dados vêm do app de caixa, o detalhamento das despesas por categoria.
 
 Os meses são sempre reordenados por data, independentemente da ordem em que você cadastrar. Variações de grafia como `mai/2025`, `MAIO/25` ou `Mai/25` são reconhecidas. Um mês com nome irreconhecível não quebra a lista: vai para o fim.
 
@@ -142,22 +146,25 @@ Quatro cartões: **melhor mês** por lucro, **pior mês** por lucro, **maior rec
 
 ## Exportar CSV
 
-O botão **CSV** baixa `relatorio_financeiro.csv` com uma linha por mês e nove colunas: mês, as quatro entradas separadas, entrada bruta, saídas, lucro e margem.
+O botão **CSV** baixa `relatorio_financeiro.csv` com uma linha por mês: mês, as quatro entradas separadas, entrada bruta, taxas, receita líquida, saídas, mercadoria, nº de vendas, lucro e margem.
 
 O arquivo usa ponto e vírgula como separador e vem com marca de codificação UTF-8, de modo que abre direto no Excel em português, com acentos corretos.
 
-Exporta **todos** os meses cadastrados, não apenas o período filtrado.
+Exporta o **período selecionado** no filtro. Campos de texto são protegidos contra fórmulas, para que uma planilha não execute conteúdo ao abrir o arquivo.
+
+O mesmo arquivo pode ser importado de volta pelo botão **Restaurar**: o painel reconhece o CSV pelo cabeçalho, aceita ponto e vírgula ou vírgula como separador, e ignora linhas sem um mês reconhecível — avisando quantas foram.
 
 ---
 
 ## Exportar PDF
 
-O botão **PDF** gera `relatorio_executivo.pdf` com duas páginas:
+O botão **PDF** gera `relatorio_executivo.pdf`:
 
-1. Título, resumo geral (quantidade de meses, receita e despesa totais) e imagens dos gráficos de *Receita vs Despesas* e *Evolução dos Métodos*
-2. Tabela com mês, receita, despesa, lucro e margem
+1. Título, resumo do período e sumário executivo em texto
+2. Gráficos de *Receita vs Despesas* e *Evolução dos Métodos*
+3. Tabela com mês, receita, despesa, lucro e margem, quebrando em novas páginas quando necessário
 
-Atenção a uma particularidade: o resumo e a tabela cobrem **todos** os meses cadastrados, enquanto as imagens dos gráficos são capturadas da tela como ela está no momento — ou seja, refletem o filtro aplicado. Com um período filtrado, os gráficos do PDF mostram menos meses do que a tabela.
+A primeira página traz um **sumário executivo em frases** — lucro, margem, melhor e pior mês, rumo da margem, meses com prejuízo, composição das despesas e ticket médio — para quem lê o PDF sem ter o painel na frente. Tabela e gráficos usam o mesmo período selecionado.
 
 Durante a geração o botão mostra *Gerando...* e fica desabilitado. Depende das bibliotecas da internet; sem elas o app avisa em vez de falhar em silêncio.
 
@@ -166,6 +173,8 @@ Durante a geração o botão mostra *Gerando...* e fica desabilitado. Depende da
 ## Backup e restauração
 
 Como os dados ficam no próprio aparelho, o backup é a forma de levá-los para outro celular ou computador — e a única proteção contra perda.
+
+O arquivo de backup tem **formato versionado**: além dos meses, guarda a versão do modelo, a data de exportação, as taxas e metas, e as somas usadas na conferência. Arquivos gerados por versões anteriores (uma lista pura de meses) continuam sendo aceitos.
 
 ### Gerar backup
 
@@ -195,6 +204,49 @@ O mesmo botão **Restaurar** aceita o backup do app de caixa. Ele reconhece o fo
 - **O mês corrente não entra** — ele teria poucos dias de venda contra boletos do mês inteiro, muitos com vencimento futuro, e a margem sairia irreal. Ele é importado sozinho na próxima vez, depois de fechado.
 
 Ao mesclar, o **iFood digitado à mão é preservado**: reimportar para buscar um mês novo não zera o que você já preencheu, e o resumo informa em quantos meses ele foi mantido. Se alguma forma de pagamento não for reconhecida, o app avisa quanto ficou de fora em vez de descartar em silêncio.
+
+
+---
+
+## Taxas e metas
+
+O botão **Taxas e metas**, ao lado de *Visão Geral*, abre a configuração que vale para o painel inteiro.
+
+**Taxas retidas** — percentuais de cartão e iFood. Sem elas o painel trata entrada bruta como receita, e o lucro sai superestimado: iFood costuma cobrar entre 12% e 30%, cartão entre 2% e 4%. Configuradas, o painel passa a mostrar receita líquida ao lado da bruta e calcula lucro e margem sobre a líquida. Em zero (o padrão) nada muda.
+
+**Metas mensais** de receita e margem. Preenchidas, aparecem barras de progresso acima dos indicadores; a meta de receita é multiplicada pelos meses do período selecionado. Zero desliga o acompanhamento.
+
+As duas configurações viajam junto no arquivo de backup.
+
+---
+
+## Análises automáticas
+
+Além dos indicadores e gráficos, o painel calcula sozinho:
+
+| Análise | O que faz |
+|---|---|
+| **Ano a ano** | Compara cada mês com o mesmo mês do ano anterior — numa conveniência a sazonalidade pesa mais que o mês anterior. Aparece na tabela e nos insights |
+| **Média móvel de 3 meses** | Linha tracejada no gráfico de margem, para ver a tendência sem o ruído mês a mês |
+| **Meses fora do padrão** | Marca com um triângulo os meses cuja margem se afasta mais de dois desvios-padrão da média do período |
+| **Projeção do mês corrente** | Se o mês em curso está lançado, estima o fechamento pela proporção de dias decorridos, deixando claro que é estimativa |
+| **Margem de contribuição** | Com o CMV preenchido, mostra o que sobra depois de pagar a mercadoria |
+| **Ticket médio** | Com o número de vendas preenchido |
+| **Composição das despesas** | Gráfico por categoria, alimentado pela importação do app de caixa |
+
+### Comparar períodos
+
+A seção **Comparar Períodos** coloca dois recortes lado a lado — receita bruta, receita líquida, despesas, lucro e margem. Os valores são a **média por mês** de cada período, para que recortes de tamanhos diferentes fiquem comparáveis.
+
+---
+
+## Proteções contra perda de dados
+
+- **Desfazer** — depois de excluir um mês, mesclar ou substituir por backup, uma barra oferece desfazer por alguns segundos.
+- **Cópia automática** — antes de toda operação destrutiva o estado atual é gravado à parte, como rede de proteção caso a página feche em seguida.
+- **Conferência do arquivo** — o backup declara quantos registros e quanto somam; se não bater na importação, o painel avisa antes de você confirmar.
+- **Alerta de digitação** — um valor três vezes acima ou abaixo da mediana do histórico pede uma segunda confirmação, para pegar zero a mais ou a menos.
+- **Confirmações na própria página** — nenhuma ação depende das janelas do navegador, que aplicativos como WhatsApp e Instagram bloqueiam.
 
 ---
 
