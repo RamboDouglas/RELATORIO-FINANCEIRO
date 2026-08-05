@@ -40,7 +40,10 @@ async function novaPagina(opcoes = {}) {
         const fixa = new Real(iso);
         class D extends Real {
             constructor(...args) {
-                return args.length ? new Real(...args) : new Real(fixa);
+                // super() de verdade: sem isto as instâncias não passam no
+                // `instanceof Date` que bibliotecas como o jsPDF exigem.
+                if (args.length === 0) super(fixa.getTime());
+                else super(...args);
             }
             static now() {
                 return fixa.getTime();
@@ -304,6 +307,21 @@ grupo('Exportações (itens 20, 22, 50)');
     checar('planilha contábil tem competência AAAA-MM', linhas[1].startsWith('"2024-09"'), linhas[1].slice(0, 12));
     checar('planilha contábil fecha com totais', linhas[linhas.length - 1].startsWith('"TOTAL"'));
 
+    // PDF com as bibliotecas reais: o arquivo precisa sair e ser um PDF válido.
+    const [pdf] = await Promise.all([
+        pagina.waitForEvent('download', { timeout: 60000 }),
+        pagina.click('button[aria-label="Exportar PDF"]'),
+    ]);
+    const caminhoPdf = path.join(tmp, 'relatorio.pdf');
+    await pdf.saveAs(caminhoPdf);
+    const bytesPdf = fs.readFileSync(caminhoPdf);
+    checar(
+        'PDF gerado é válido',
+        bytesPdf.subarray(0, 5).toString() === '%PDF-',
+        `${Math.round(bytesPdf.length / 1024)} KB`,
+    );
+    checar('PDF tem mais de uma página', bytesPdf.toString('latin1').split('/Type /Page').length > 2);
+
     // CSV volta pela restauração (item 23)
     await pagina.evaluate(() => localStorage.clear());
     await pagina.reload();
@@ -340,6 +358,32 @@ grupo('Celular: layout e gráficos (itens 26, 33)');
     checar('gráficos renderizados', await pagina.evaluate(() => !!revenueExpensesChart));
     checar('valores abreviados no eixo', (await pagina.evaluate(() => abreviarValor(138164))) === 'R$ 138 mil');
     checar('manifest declarado', (await pagina.$('link[rel="manifest"]')) !== null);
+
+    // Regressão: com os campos opcionais o formulário ficou mais alto que a
+    // área visível do celular. O overlay precisa rolar, senão o botão Salvar
+    // fica inalcançável e não há como cadastrar um mês pelo aparelho.
+    await pagina.click('button[aria-label="Adicionar mês"]');
+    await pagina.waitForTimeout(300);
+    const modal = await pagina.evaluate(() => {
+        const el = document.getElementById('data-modal');
+        return { rola: el.scrollHeight > el.clientHeight, caixa: el.clientHeight };
+    });
+    checar('modal rola quando é mais alto que a tela', modal.rola, `área visível ${modal.caixa}px`);
+    await pagina.selectOption('#month-name', 'Jun');
+    await pagina.selectOption('#month-year', '2020');
+    for (const [campo, valor] of [
+        ['cash', '100'],
+        ['card', '100'],
+        ['pix', '100'],
+        ['ifood', '0'],
+        ['expenses', '150'],
+    ]) {
+        await pagina.fill(`#${campo}`, valor);
+    }
+    await pagina.click('#save-button', { timeout: 10000 });
+    if (await pagina.isVisible('#form-warning')) await pagina.click('#save-button');
+    await pagina.waitForTimeout(500);
+    checar('dá para salvar um mês pelo celular', (await meses(pagina)).includes('Jun/2020'));
     checar('sem erros de JS', erros.length === 0, erros.join(' | '));
     await contexto.close();
 }

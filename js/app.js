@@ -28,9 +28,10 @@ let toastTimer;
 function showToast(message, type = 'info') {
     const el = document.getElementById('toast');
     if (!el) return;
-    const bg = type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-green-600' : 'bg-gray-800';
+    const cor = type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-green-600' : 'bg-gray-800';
     el.textContent = message;
-    el.className = `fixed bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:w-96 sm:-ml-48 z-50 px-4 py-3 rounded-lg shadow-lg text-sm text-white ${bg}`;
+    // Só a cor muda: o posicionamento vive no CSS, junto com a barra de desfazer.
+    el.className = `aviso ${cor}`;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.add('hidden'), 6000);
 }
@@ -108,15 +109,12 @@ function guardarParaDesfazer(mensagem, motivo) {
     const barra = document.getElementById('undo-bar');
     document.getElementById('undo-text').textContent = mensagem.replace(' desfeita.', '').replace(' desfeito.', '');
     barra.classList.remove('hidden');
-    barra.classList.add('flex');
     clearTimeout(undoTimer);
     undoTimer = setTimeout(esconderDesfazer, 12000);
 }
 
 function esconderDesfazer() {
-    const barra = document.getElementById('undo-bar');
-    barra.classList.add('hidden');
-    barra.classList.remove('flex');
+    document.getElementById('undo-bar').classList.add('hidden');
 }
 
 function desfazerUltimaAcao() {
@@ -700,12 +698,12 @@ window.onclick = function (event) {
 
 function populateMonthCheckboxes() {
     const container = document.getElementById('month-checkboxes');
-    container.innerHTML = `<div class="px-4 py-2"><label class="inline-flex items-center"><input type="checkbox" id="select-all-months" onchange="toggleAllMonths(this.checked)" class="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded" checked><span class="ml-2 text-sm text-gray-700">Selecionar Todos</span></label></div><div class="border-t border-gray-200"></div>`;
+    container.innerHTML = `<div class="px-4 py-2"><label class="inline-flex items-center"><input type="checkbox" id="select-all-months" onchange="toggleAllMonths(this.checked)" class="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded" checked><span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Selecionar Todos</span></label></div><div class="border-t border-gray-200 dark:border-gray-700"></div>`;
     const selecionados = new Set(dadosRenderizados.map((d) => d.month));
     const usarSelecao = dadosRenderizados.length > 0 && dadosRenderizados.length < financialData.length;
     financialData.forEach((item) => {
         const marcado = usarSelecao ? selecionados.has(item.month) : true;
-        container.innerHTML += `<div class="px-4 py-2"><label class="inline-flex items-center"><input type="checkbox" class="month-checkbox form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded" value="${escapeHtml(item.month)}"${marcado ? ' checked' : ''}><span class="ml-2 text-sm text-gray-700">${escapeHtml(item.month)}</span></label></div>`;
+        container.innerHTML += `<div class="px-4 py-2"><label class="inline-flex items-center"><input type="checkbox" class="month-checkbox form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded" value="${escapeHtml(item.month)}"${marcado ? ' checked' : ''}><span class="ml-2 text-sm text-gray-700 dark:text-gray-300">${escapeHtml(item.month)}</span></label></div>`;
     });
     const todos = document.getElementById('select-all-months');
     if (todos) todos.checked = !usarSelecao;
@@ -771,7 +769,7 @@ function updateDashboard(dataToRender) {
     const anomalias = detectarAnomalias(dataToRender);
 
     document.getElementById('header-stats').innerHTML =
-        `<div class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium">Atualizado: ${new Date().toLocaleDateString('pt-BR')}</div><div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">Período: ${dataToRender.length} mes(es)</div><div class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium">Vendas Totais: ${formatCurrency(revenueTrend.value)}</div>`;
+        `<div class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-xs font-medium">Atualizado: ${new Date().toLocaleDateString('pt-BR')}</div><div class="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-3 py-1 rounded-full text-xs font-medium">Período: ${dataToRender.length} mes(es)</div><div class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-1 rounded-full text-xs font-medium">Vendas Totais: ${formatCurrency(revenueTrend.value)}</div>`;
 
     const renderTrend = (trend, positiveUp = true) => {
         if (trend.change === 0) return '';
@@ -786,8 +784,8 @@ function updateDashboard(dataToRender) {
     // Receita líquida só aparece quando há taxa configurada.
     const notaTaxas =
         taxasTotais > 0
-            ? `<p class="text-xs text-gray-500 mt-1">Líquida: ${formatCurrency(receitaLiquida)} <span class="text-gray-400">(−${formatCurrency(taxasTotais)} de taxas)</span></p>`
-            : '<p class="text-xs text-gray-400">vs. período anterior</p>';
+            ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Líquida: ${formatCurrency(receitaLiquida)} <span class="text-gray-400">(−${formatCurrency(taxasTotais)} de taxas)</span></p>`
+            : '<p class="text-xs text-gray-400 dark:text-gray-500">vs. período anterior</p>';
 
     const totalVendas = somar(dataToRender, (d) => d.vendas);
     const ticket = totalVendas > 0 ? revenueTrend.value / totalVendas : null;
@@ -797,23 +795,23 @@ function updateDashboard(dataToRender) {
 
     const quartoCartao =
         ticket !== null
-            ? `<div class="bg-white rounded-lg shadow p-6"><p class="text-sm text-gray-500">Ticket Médio</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold">${formatCurrency(ticket)}</p></div><p class="text-xs text-gray-400">${totalVendas.toLocaleString('pt-BR')} vendas no período</p></div>`
-            : `<div class="bg-white rounded-lg shadow p-6"><p class="text-sm text-gray-500">Margem Média</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold">${margin.toFixed(1)}%</p></div><p class="text-xs text-gray-400">no período selecionado</p></div>`;
+            ? `<div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm text-gray-500 dark:text-gray-400">Ticket Médio</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold dark:text-gray-100">${formatCurrency(ticket)}</p></div><p class="text-xs text-gray-400 dark:text-gray-500">${totalVendas.toLocaleString('pt-BR')} vendas no período</p></div>`
+            : `<div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm text-gray-500 dark:text-gray-400">Margem Média</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold dark:text-gray-100">${margin.toFixed(1)}%</p></div><p class="text-xs text-gray-400 dark:text-gray-500">no período selecionado</p></div>`;
 
     const cartaoMargem =
         ticket !== null
-            ? `<div class="bg-white rounded-lg shadow p-6"><p class="text-sm text-gray-500">Margem Média</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold">${margin.toFixed(1)}%</p></div><p class="text-xs text-gray-400">no período selecionado</p></div>`
+            ? `<div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm text-gray-500 dark:text-gray-400">Margem Média</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold dark:text-gray-100">${margin.toFixed(1)}%</p></div><p class="text-xs text-gray-400 dark:text-gray-500">no período selecionado</p></div>`
             : '';
 
     const cartaoContribuicao =
         margemContribuicao !== null
-            ? `<div class="bg-white rounded-lg shadow p-6"><p class="text-sm text-gray-500">Margem de Contribuição</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold">${margemContribuicao.toFixed(1)}%</p></div><p class="text-xs text-gray-400">depois da mercadoria (${formatCurrency(totalCmv)})</p></div>`
+            ? `<div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm text-gray-500 dark:text-gray-400">Margem de Contribuição</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold dark:text-gray-100">${margemContribuicao.toFixed(1)}%</p></div><p class="text-xs text-gray-400 dark:text-gray-500">depois da mercadoria (${formatCurrency(totalCmv)})</p></div>`
             : '';
 
     document.getElementById('summary-cards').innerHTML = `
-        <div class="bg-white rounded-lg shadow p-6"><p class="text-sm text-gray-500">Receita Total</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold">${formatCurrency(revenueTrend.value)}</p>${renderTrend(revenueTrend)}</div>${notaTaxas}</div>
-        <div class="bg-white rounded-lg shadow p-6"><p class="text-sm text-gray-500">Despesas Totais</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold">${formatCurrency(expensesTrend.value)}</p>${renderTrend(expensesTrend, false)}</div><p class="text-xs text-gray-400">vs. período anterior</p></div>
-        <div class="bg-white rounded-lg shadow p-6"><p class="text-sm text-gray-500">Lucro Líquido</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold">${formatCurrency(profitTrend.value)}</p>${renderTrend(profitTrend)}</div><p class="text-xs text-gray-400">vs. período anterior</p></div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm text-gray-500 dark:text-gray-400">Receita Total</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold dark:text-gray-100">${formatCurrency(revenueTrend.value)}</p>${renderTrend(revenueTrend)}</div>${notaTaxas}</div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm text-gray-500 dark:text-gray-400">Despesas Totais</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold dark:text-gray-100">${formatCurrency(expensesTrend.value)}</p>${renderTrend(expensesTrend, false)}</div><p class="text-xs text-gray-400 dark:text-gray-500">vs. período anterior</p></div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p class="text-sm text-gray-500 dark:text-gray-400">Lucro Líquido</p><div class="flex items-baseline space-x-2"><p class="text-2xl font-semibold dark:text-gray-100">${formatCurrency(profitTrend.value)}</p>${renderTrend(profitTrend)}</div><p class="text-xs text-gray-400 dark:text-gray-500">vs. período anterior</p></div>
         ${quartoCartao}${cartaoMargem}${cartaoContribuicao}`;
 
     renderizarMetas(dataToRender, revenueTrend.value, margin);
@@ -825,9 +823,9 @@ function updateDashboard(dataToRender) {
         COLUNAS_TABELA.map((col) => {
             const ativa = ordenacao.coluna === col.chave;
             const seta = ativa ? (ordenacao.crescente ? ' ▲' : ' ▼') : '';
-            return `<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none hover:text-gray-800" onclick="ordenarPor('${col.chave}')" title="Ordenar por ${escapeHtml(col.rotulo)}">${escapeHtml(col.rotulo)}${seta}</th>`;
+            return `<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase cursor-pointer select-none hover:text-gray-800" onclick="ordenarPor('${col.chave}')" title="Ordenar por ${escapeHtml(col.rotulo)}">${escapeHtml(col.rotulo)}${seta}</th>`;
         }).join('') +
-        '<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>';
+        '<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Ações</th>';
 
     const colunaAtiva = COLUNAS_TABELA.find((c) => c.chave === ordenacao.coluna) || COLUNAS_TABELA[0];
     const linhas = [...dataToRender].sort((a, b) => {
@@ -850,7 +848,7 @@ function updateDashboard(dataToRender) {
             const notaAnual = anual
                 ? `<span class="block text-xs ${anual.variacao >= 0 ? 'text-green-600' : 'text-red-600'}">${anual.variacao >= 0 ? '+' : ''}${anual.variacao.toFixed(1)}% vs ${escapeHtml(anual.anterior.month)}</span>`
                 : '';
-            return `<tr><td class="px-6 py-4 text-sm font-medium text-gray-900">${escapeHtml(item.month)}${marca}</td><td class="px-6 py-4 text-sm text-gray-500">${formatCurrency(grossIncome)}${notaAnual}</td><td class="px-6 py-4 text-sm text-gray-500">${formatCurrency(item.expenses)}</td><td class="px-6 py-4 text-sm font-medium ${profit < 0 ? 'text-red-600' : 'text-green-600'}">${profit < 0 ? '<i class="fas fa-arrow-down mr-1" aria-hidden="true"></i><span class="sr-only">Prejuízo:</span>' : ''}${formatCurrency(profit)}</td><td class="px-6 py-4 text-sm font-medium ${margemItem < 10 ? 'text-red-600' : 'text-green-600'}">${margemItem < 10 ? '<i class="fas fa-triangle-exclamation mr-1" aria-hidden="true"></i><span class="sr-only">Margem baixa:</span>' : ''}${margemItem.toFixed(1)}%</td><td class="px-6 py-4 text-sm font-medium whitespace-nowrap"><button onclick="openModal(${originalIndex})" class="text-indigo-600 hover:text-indigo-900 mr-3" aria-label="Editar ${escapeHtml(item.month)}"><i class="fas fa-edit"></i></button><button onclick="deleteData(${originalIndex})" class="text-red-600 hover:text-red-900" aria-label="Excluir ${escapeHtml(item.month)}"><i class="fas fa-trash"></i></button></td></tr>`;
+            return `<tr><td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">${escapeHtml(item.month)}${marca}</td><td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">${formatCurrency(grossIncome)}${notaAnual}</td><td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">${formatCurrency(item.expenses)}</td><td class="px-6 py-4 text-sm font-medium ${profit < 0 ? 'text-red-600' : 'text-green-600'}">${profit < 0 ? '<i class="fas fa-arrow-down mr-1" aria-hidden="true"></i><span class="sr-only">Prejuízo:</span>' : ''}${formatCurrency(profit)}</td><td class="px-6 py-4 text-sm font-medium ${margemItem < 10 ? 'text-red-600' : 'text-green-600'}">${margemItem < 10 ? '<i class="fas fa-triangle-exclamation mr-1" aria-hidden="true"></i><span class="sr-only">Margem baixa:</span>' : ''}${margemItem.toFixed(1)}%</td><td class="px-6 py-4 text-sm font-medium whitespace-nowrap"><button onclick="openModal(${originalIndex})" class="text-indigo-600 hover:text-indigo-900 mr-3" aria-label="Editar ${escapeHtml(item.month)}"><i class="fas fa-edit"></i></button><button onclick="deleteData(${originalIndex})" class="text-red-600 hover:text-red-900" aria-label="Excluir ${escapeHtml(item.month)}"><i class="fas fa-trash"></i></button></td></tr>`;
         })
         .join('');
 
@@ -881,16 +879,16 @@ function renderizarMetas(dados, receitaPeriodo, margemPeriodo) {
         const cor = pct >= 100 ? 'bg-green-500' : pct >= 75 ? 'bg-yellow-500' : 'bg-red-500';
         return `
             <div class="flex-1 basis-full sm:basis-64">
-                <div class="flex flex-wrap items-baseline justify-between gap-x-3 text-xs text-gray-600 mb-1">
-                    <span>${escapeHtml(rotulo)}</span><span class="font-medium text-gray-800">${escapeHtml(texto)}</span>
+                <div class="flex flex-wrap items-baseline justify-between gap-x-3 text-xs text-gray-600 dark:text-gray-400 mb-1">
+                    <span>${escapeHtml(rotulo)}</span><span class="font-medium text-gray-800 dark:text-gray-200">${escapeHtml(texto)}</span>
                 </div>
-                <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div class="${cor} h-2 rounded-full" style="width: ${Math.min(100, pct)}%"></div>
                 </div>
             </div>`;
     };
 
-    let html = '<div class="bg-white rounded-lg shadow p-4 flex flex-wrap gap-6">';
+    let html = '<div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 flex flex-wrap gap-6">';
     if (config.metaReceita > 0) {
         // A meta é mensal, então é multiplicada pelos meses do período.
         const metaPeriodo = config.metaReceita * dados.length;
@@ -976,9 +974,9 @@ function compararPeriodos() {
             const variacao = ma !== 0 ? ((mb - ma) / Math.abs(ma)) * 100 : mb > 0 ? 100 : 0;
             const bom = m.maiorMelhor ? variacao >= 0 : variacao <= 0;
             return `<tr>
-            <td class="px-3 py-2 text-sm text-gray-700">${escapeHtml(m.rotulo)}</td>
-            <td class="px-3 py-2 text-sm text-right">${formatCurrency(ma)}</td>
-            <td class="px-3 py-2 text-sm text-right">${formatCurrency(mb)}</td>
+            <td class="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">${escapeHtml(m.rotulo)}</td>
+            <td class="px-3 py-2 text-sm text-right dark:text-gray-200">${formatCurrency(ma)}</td>
+            <td class="px-3 py-2 text-sm text-right dark:text-gray-200">${formatCurrency(mb)}</td>
             <td class="px-3 py-2 text-sm text-right font-medium ${bom ? 'text-green-600' : 'text-red-600'}">${variacao >= 0 ? '+' : ''}${variacao.toFixed(1)}%</td>
         </tr>`;
         })
@@ -990,24 +988,24 @@ function compararPeriodos() {
     destino.innerHTML = `
         <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50"><tr>
-                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Média mensal</th>
-                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">A: ${escapeHtml(a[0].month)}–${escapeHtml(a[a.length - 1].month)} <span class="font-normal">(${a.length}m)</span></th>
-                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">B: ${escapeHtml(b[0].month)}–${escapeHtml(b[b.length - 1].month)} <span class="font-normal">(${b.length}m)</span></th>
-                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Variação</th>
+            <thead class="bg-gray-50 dark:bg-gray-700"><tr>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Média mensal</th>
+                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">A: ${escapeHtml(a[0].month)}–${escapeHtml(a[a.length - 1].month)} <span class="font-normal">(${a.length}m)</span></th>
+                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">B: ${escapeHtml(b[0].month)}–${escapeHtml(b[b.length - 1].month)} <span class="font-normal">(${b.length}m)</span></th>
+                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Variação</th>
             </tr></thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 ${linhas}
                 <tr>
-                    <td class="px-3 py-2 text-sm text-gray-700">Margem</td>
-                    <td class="px-3 py-2 text-sm text-right">${margemA.toFixed(1)}%</td>
-                    <td class="px-3 py-2 text-sm text-right">${margemB.toFixed(1)}%</td>
+                    <td class="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">Margem</td>
+                    <td class="px-3 py-2 text-sm text-right dark:text-gray-200">${margemA.toFixed(1)}%</td>
+                    <td class="px-3 py-2 text-sm text-right dark:text-gray-200">${margemB.toFixed(1)}%</td>
                     <td class="px-3 py-2 text-sm text-right font-medium ${margemB >= margemA ? 'text-green-600' : 'text-red-600'}">${margemB >= margemA ? '+' : ''}${(margemB - margemA).toFixed(1)} p.p.</td>
                 </tr>
             </tbody>
         </table>
         </div>
-        <p class="mt-3 text-xs text-gray-500">Os valores são a média por mês de cada período, para que recortes de tamanhos diferentes possam ser comparados.</p>`;
+        <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">Os valores são a média por mês de cada período, para que recortes de tamanhos diferentes possam ser comparados.</p>`;
 }
 
 // ---- Projeção do mês corrente (item 16) ----
@@ -1020,7 +1018,7 @@ function renderizarProjecao(dados) {
         return;
     }
     caixa.innerHTML = `
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-gray-700">
+        <div class="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-200">
             <strong>${escapeHtml(mesAtual.month)} ainda está em andamento</strong>
             — ${proj.diasCorridos} de ${proj.diasNoMes} dias lançados.
             No ritmo atual o mês fecharia com receita de <strong>${formatCurrency(proj.receita)}</strong>,
@@ -1279,10 +1277,10 @@ function populateHighlights(data) {
         getGrossIncome(bestMarginMonth) > 0 ? (getProfit(bestMarginMonth) / getGrossIncome(bestMarginMonth)) * 100 : 0;
 
     section.innerHTML = `
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500"> <p class="text-sm text-gray-500">Melhor Mês (Lucro)</p><p class="text-lg font-semibold">${escapeHtml(bestMonth.month)}</p><p class="text-sm text-green-600">${formatCurrency(getProfit(bestMonth))}</p></div>
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-red-500"><p class="text-sm text-gray-500">Pior Mês (Lucro)</p><p class="text-lg font-semibold">${escapeHtml(worstMonth.month)}</p><p class="text-sm text-red-600">${formatCurrency(getProfit(worstMonth))}</p></div>
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500"><p class="text-sm text-gray-500">Maior Receita</p><p class="text-lg font-semibold">${escapeHtml(highestRevenueMonth.month)}</p><p class="text-sm text-blue-600">${formatCurrency(getGrossIncome(highestRevenueMonth))}</p></div>
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500"><p class="text-sm text-gray-500">Melhor Margem</p><p class="text-lg font-semibold">${escapeHtml(bestMarginMonth.month)}</p><p class="text-sm text-purple-600">${bestMarginValue.toFixed(1)}%</p></div>`;
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border-l-4 border-green-500"> <p class="text-sm text-gray-500 dark:text-gray-400">Melhor Mês (Lucro)</p><p class="text-lg font-semibold">${escapeHtml(bestMonth.month)}</p><p class="text-sm text-green-600">${formatCurrency(getProfit(bestMonth))}</p></div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border-l-4 border-red-500"><p class="text-sm text-gray-500 dark:text-gray-400">Pior Mês (Lucro)</p><p class="text-lg font-semibold">${escapeHtml(worstMonth.month)}</p><p class="text-sm text-red-600">${formatCurrency(getProfit(worstMonth))}</p></div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border-l-4 border-blue-500"><p class="text-sm text-gray-500 dark:text-gray-400">Maior Receita</p><p class="text-lg font-semibold">${escapeHtml(highestRevenueMonth.month)}</p><p class="text-sm text-blue-600">${formatCurrency(getGrossIncome(highestRevenueMonth))}</p></div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border-l-4 border-purple-500"><p class="text-sm text-gray-500 dark:text-gray-400">Melhor Margem</p><p class="text-lg font-semibold">${escapeHtml(bestMarginMonth.month)}</p><p class="text-sm text-purple-600">${bestMarginValue.toFixed(1)}%</p></div>`;
 }
 
 function generateDynamicInsights(data, trend, anomalias) {
@@ -1422,8 +1420,8 @@ function showMonthAnalysis(element, month) {
     const blocoExtras = linhasExtras
         .map(
             ([rotulo, valor, cor]) => `
-        <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-            <span class="font-medium text-gray-700">${escapeHtml(rotulo)}</span>
+        <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <span class="font-medium text-gray-700 dark:text-gray-200">${escapeHtml(rotulo)}</span>
             <span class="font-bold ${cor}">${escapeHtml(valor)}</span>
         </div>`,
         )
@@ -1437,54 +1435,54 @@ function showMonthAnalysis(element, month) {
         catsMes.length === 0
             ? ''
             : `
-        <h3 class="text-lg font-semibold text-gray-800 mt-6 mb-3">Despesas por Categoria</h3>
-        <ul class="bg-gray-50 rounded-lg p-4">${catsMes
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mt-6 mb-3">Despesas por Categoria</h3>
+        <ul class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">${catsMes
             .map(
                 (c, i) => `
             <li class="flex justify-between items-center py-2 ${i < catsMes.length - 1 ? 'border-b' : ''}">
-                <span class="text-gray-600">${escapeHtml(c.charAt(0).toUpperCase() + c.slice(1))}</span>
-                <span class="font-medium">${formatCurrency(monthData.categorias[c])}</span>
+                <span class="text-gray-600 dark:text-gray-300">${escapeHtml(c.charAt(0).toUpperCase() + c.slice(1))}</span>
+                <span class="font-medium dark:text-gray-100">${formatCurrency(monthData.categorias[c])}</span>
             </li>`,
             )
             .join('')}</ul>`;
 
     const paymentBreakdown = `
-        <li class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Dinheiro</span><span class="font-medium">${formatCurrency(monthData.cash)}</span></li>
-        <li class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Cartão</span><span class="font-medium">${formatCurrency(monthData.card)}</span></li>
-        <li class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Pix</span><span class="font-medium">${formatCurrency(monthData.pix)}</span></li>
-        <li class="flex justify-between items-center py-2"><span class="text-gray-600">iFood</span><span class="font-medium">${formatCurrency(monthData.ifood)}</span></li>
+        <li class="flex justify-between items-center py-2 border-b"><span class="text-gray-600 dark:text-gray-300">Dinheiro</span><span class="font-medium dark:text-gray-100">${formatCurrency(monthData.cash)}</span></li>
+        <li class="flex justify-between items-center py-2 border-b"><span class="text-gray-600 dark:text-gray-300">Cartão</span><span class="font-medium dark:text-gray-100">${formatCurrency(monthData.card)}</span></li>
+        <li class="flex justify-between items-center py-2 border-b"><span class="text-gray-600 dark:text-gray-300">Pix</span><span class="font-medium dark:text-gray-100">${formatCurrency(monthData.pix)}</span></li>
+        <li class="flex justify-between items-center py-2"><span class="text-gray-600 dark:text-gray-300">iFood</span><span class="font-medium dark:text-gray-100">${formatCurrency(monthData.ifood)}</span></li>
     `;
 
     contentDiv.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-3">${escapeHtml(monthData.month)} - Resumo</h3>
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">${escapeHtml(monthData.month)} - Resumo</h3>
                 <div class="space-y-3">
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <span class="font-medium text-gray-700">Receita Bruta</span>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <span class="font-medium text-gray-700 dark:text-gray-200">Receita Bruta</span>
                         <span class="font-bold text-blue-600">${formatCurrency(gross)}</span>
                     </div>
-                     <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <span class="font-medium text-gray-700">Despesas</span>
+                     <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <span class="font-medium text-gray-700 dark:text-gray-200">Despesas</span>
                         <span class="font-bold text-red-600">${formatCurrency(monthData.expenses)}</span>
                     </div>
-                     <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <span class="font-medium text-gray-700">Lucro Líquido</span>
+                     <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <span class="font-medium text-gray-700 dark:text-gray-200">Lucro Líquido</span>
                         <span class="font-bold ${profit > 0 ? 'text-green-600' : 'text-red-600'}">${formatCurrency(profit)}</span>
                     </div>
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <span class="font-medium text-gray-700">Margem de Lucro</span>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <span class="font-medium text-gray-700 dark:text-gray-200">Margem de Lucro</span>
                         <span class="font-bold ${margin < 10 ? 'text-red-600' : margin > 35 ? 'text-green-600' : 'text-gray-800'}">${margin.toFixed(1)}%</span>
                     </div>
                     ${blocoExtras}
                 </div>
             </div>
             <div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-3">Detalhamento das Entradas</h3>
-                <ul class="bg-gray-50 rounded-lg p-4">${paymentBreakdown}</ul>
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Detalhamento das Entradas</h3>
+                <ul class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">${paymentBreakdown}</ul>
                 ${blocoCategorias}
 
-                <h3 class="text-lg font-semibold text-gray-800 mt-6 mb-3">Sugestões</h3>
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mt-6 mb-3">Sugestões</h3>
                 <ul class="space-y-2">${suggestions}</ul>
             </div>
         </div>
@@ -1724,7 +1722,7 @@ function openRestoreModal(records, origem, detalhes) {
     let html = `O arquivo tem <strong>${records.length}</strong> registro(s): <strong>${novos}</strong> mês(es) que ainda não estão aqui e <strong>${repetidos}</strong> já existente(s). Neste aparelho há <strong>${financialData.length}</strong> mês(es) salvos.`;
 
     if (detalhes && detalhes.divergencias && detalhes.divergencias.length) {
-        html += `<span class="block mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded text-xs text-yellow-900">`;
+        html += `<span class="block mt-3 p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-300 dark:border-yellow-800 rounded text-xs text-yellow-900 dark:text-yellow-200">`;
         html += `<strong>A conferência do arquivo não bateu:</strong><br>${detalhes.divergencias.map(escapeHtml).join('<br>')}`;
         html += `<br><span class="block mt-1">Isso indica arquivo truncado ou editado. Dá para continuar, mas confira os números depois.</span></span>`;
     }
@@ -1734,7 +1732,7 @@ function openRestoreModal(records, origem, detalhes) {
 
     if (pendingBackupOrigem === 'caixa' && detalhes) {
         const periodo = records.length ? ` (${records[0].month} a ${records[records.length - 1].month})` : '';
-        html += `<span class="block mt-3 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-gray-700">`;
+        html += `<span class="block mt-3 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded text-xs text-gray-700 dark:text-gray-200">`;
         html += `Backup do <strong>Controle Financeiro</strong>: lançamentos diários somados por mês${periodo}.`;
         if (detalhes.mesesIgnorados.length) {
             html += `<br>Mês em aberto fora da importação: <strong>${detalhes.mesesIgnorados.join(', ')}</strong>.`;
@@ -2044,7 +2042,9 @@ function focarModal(id) {
     const el = document.getElementById(id);
     if (!el) return;
     const alvo = el.querySelector('input:not([type=hidden]), select, button');
-    if (alvo) setTimeout(() => alvo.focus(), 50);
+    // Foco imediato, e não por setTimeout: um foco atrasado disputa com quem
+    // já começou a digitar e joga o texto no campo errado.
+    if (alvo) alvo.focus();
 }
 
 // #############################################################

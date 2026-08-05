@@ -47,3 +47,92 @@
     max-width: calc(100vw - 2rem);
     box-sizing: border-box;
 }
+
+/* ------------------------------------------------------------
+   MODAIS
+   Antes o overlay usava h-full (altura do viewport de layout) com a
+   caixa deslocada por `relative top-N`. No celular a área realmente
+   visível é menor que o viewport de layout, então o conteúdo do fim do
+   formulário — inclusive o botão Salvar — ficava fora da tela, e o
+   container não rolava porque, para ele, tudo cabia.
+
+   100dvh acompanha a área visível de verdade, e o alinhamento no topo
+   com padding deixa o modal rolar sempre que for mais alto que ela.
+   ------------------------------------------------------------ */
+.modal-overlay {
+    position: fixed;
+    left: 0;
+    top: 0;
+    /* vw/dvh acompanham a área realmente visível. `inset: 0` se resolve
+       contra o viewport de layout, que no celular pode ser maior que a
+       tela quando há conteúdo largo na página. */
+    width: 100vw;
+    height: 100dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.modal-overlay.hidden {
+    display: none !important;
+}
+
+.modal-caixa {
+    width: 100%;
+    margin: auto 0;
+}
+
+/* ------------------------------------------------------------
+   AVISOS FIXOS (toast e barra de desfazer)
+   Antes cada um usava `position: fixed; bottom: N`. No celular o
+   viewport de layout é mais alto que a área visível, e os dois ficavam
+   abaixo da tela: nenhuma mensagem do app aparecia, e o botão Desfazer
+   era impossível de tocar.
+
+   Agora ficam num container de altura 100dvh, empurrados para o fim
+   pelo flex. Assim acompanham a área visível de verdade e se empilham
+   sem se sobrepor.
+   ------------------------------------------------------------ */
+#avisos-fixos {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100dvh;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    pointer-events: none;
+}
+
+#avisos-fixos > * {
+    pointer-events: auto;
+}
+
+.aviso {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 24rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    box-shadow:
+        0 10px 15px -3px rgb(0 0 0 / 0.1),
+        0 4px 6px -4px rgb(0 0 0 / 0.1);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: #fff;
+}
+
+.aviso.hidden {
+    display: none !important;
+}
