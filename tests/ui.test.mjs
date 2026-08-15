@@ -389,6 +389,48 @@ grupo('Celular: layout e gráficos (itens 26, 33)');
 }
 
 // ------------------------------------------------------------
+grupo('Celular: zoom travado');
+{
+    const { pagina, contexto, erros } = await novaPagina(devices['iPhone 14 Pro']);
+
+    const viewport = await pagina.$eval('meta[name="viewport"]', (e) => e.content);
+    checar(
+        'meta viewport fixa a escala em 1',
+        /maximum-scale=1(\.0)?\b/.test(viewport) && /user-scalable=no\b/.test(viewport),
+        viewport,
+    );
+
+    const touch = await pagina.evaluate(() => getComputedStyle(document.documentElement).touchAction);
+    checar('pinça bloqueada pelo touch-action', touch === 'pan-x pan-y', touch);
+
+    // O Safari do iPhone ignora a meta viewport; lá quem segura a pinça é o
+    // cancelamento do gesto feito em travarZoom().
+    const gestoCancelado = await pagina.evaluate(() => {
+        const evento = new Event('gesturestart', { cancelable: true, bubbles: true });
+        document.dispatchEvent(evento);
+        return evento.defaultPrevented;
+    });
+    checar('gesto de pinça do iOS é cancelado', gestoCancelado);
+
+    // Campo com fonte menor que 16px faz o iPhone ampliar sozinho ao receber
+    // foco — e, com o zoom travado, a página não volta ao tamanho normal.
+    const pequenos = await pagina.evaluate(() =>
+        [...document.querySelectorAll('input, select, textarea')]
+            .filter((e) => parseFloat(getComputedStyle(e).fontSize) < 16)
+            .map((e) => e.id || e.type || e.tagName.toLowerCase()),
+    );
+    checar('nenhum campo com fonte abaixo de 16px', pequenos.length === 0, pequenos.join(', '));
+
+    // Travar o zoom não pode travar a rolagem: pan-y precisa continuar valendo.
+    await pagina.evaluate(() => window.scrollTo(0, 300));
+    await pagina.waitForTimeout(200);
+    checar('a página continua rolando na vertical', (await pagina.evaluate(() => window.scrollY)) > 0);
+
+    checar('sem erros de JS', erros.length === 0, erros.join(' | '));
+    await contexto.close();
+}
+
+// ------------------------------------------------------------
 await navegador.close();
 servidor.close();
 fs.rmSync(tmp, { recursive: true, force: true });

@@ -2,7 +2,10 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Zoom travado em 1x. Com a pinça liberada, um gesto acidental
+         encolhia o painel num canto da tela (o resto ficava em branco) e
+         não havia como voltar ao tamanho certo sem recarregar. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="Painel financeiro mensal para loja de conveniência: receita por forma de pagamento, despesas, margem e análises.">
     <meta name="theme-color" content="#1f2937">
     <title>Relatório Financeiro - Conveniência</title>
@@ -158,7 +161,11 @@
         <section class="mb-8">
             <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center"><i class="fas fa-table mr-2 text-blue-500"></i> Detalhamento Mensal</h2>
             <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-                <div class="overflow-x-auto scrollbar-hide">
+                <!-- `relative` é o que prende os filhos absolutos a esta caixa.
+                     Os rótulos .sr-only das linhas (position: absolute) não
+                     tinham ancestral posicionado: escapavam do recorte da
+                     rolagem e esticavam a página inteira 238px para o lado. -->
+                <div class="relative overflow-x-auto scrollbar-hide">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <caption class="sr-only">Detalhamento financeiro por mês</caption>
                         <thead class="bg-gray-50 dark:bg-gray-700">
@@ -185,7 +192,7 @@
             <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center"><i class="fas fa-search-dollar mr-2 text-blue-500"></i> Análise Detalhada por Mês</h2>
             <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
                 <div class="border-b border-gray-200 dark:border-gray-700">
-                    <nav id="month-tabs" class="flex -mb-px overflow-x-auto scrollbar-hide"></nav>
+                    <nav id="month-tabs" class="relative flex -mb-px overflow-x-auto scrollbar-hide"></nav>
                 </div>
                 <div id="monthAnalysisContent" class="p-6"></div>
             </div>

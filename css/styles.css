@@ -18,6 +18,40 @@
     70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
     100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
+/* ------------------------------------------------------------
+   ZOOM TRAVADO NO CELULAR
+   A meta viewport sozinha não basta: o Chrome do Android só larga a
+   pinça quando o elemento raiz declara touch-action, e o Safari do
+   iPhone ignora `user-scalable=no` desde o iOS 10 (lá o bloqueio é
+   feito por JS, em travarZoom()).
+
+   `pan-x pan-y` mantém a rolagem normal — inclusive dentro dos modais
+   e das tabelas que rolam de lado — e corta só o gesto de ampliar.
+   ------------------------------------------------------------ */
+html {
+    touch-action: pan-x pan-y;
+    /* Sem isto o navegador aumenta o texto por conta própria ao girar
+       a tela, e o layout deixa de bater com a largura do aparelho. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+/* O Safari do iPhone amplia sozinho ao focar um campo com fonte menor
+   que 16px. Com o zoom travado ele não desfaz a ampliação depois, e a
+   página fica presa ampliada até recarregar — exatamente o estado que
+   se quer evitar. 16px em todos os campos elimina o salto.
+
+   O !important é o que faz a regra valer sobre utilitários do Tailwind
+   como `text-sm`, que têm especificidade de classe. Vale só até 640px:
+   no computador os campos seguem com o tamanho de origem. */
+@media (max-width: 640px) {
+    input,
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+}
+
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 .chart-container { position: relative; height: 300px; width: 100%; }

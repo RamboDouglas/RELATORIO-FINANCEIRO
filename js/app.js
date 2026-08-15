@@ -1837,6 +1837,7 @@ document.addEventListener('DOMContentLoaded', () => {
     aplicarTemaSalvo();
     carregarConfig();
     prepararAcessibilidade();
+    travarZoom();
     registrarServiceWorker();
     document.getElementById('app-version').textContent = APP_VERSAO;
     atualizarBotaoBloqueio();
@@ -2331,5 +2332,29 @@ function registrarServiceWorker() {
     if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
     navigator.serviceWorker.register('sw.js').catch(() => {
         /* segue sem offline */
+    });
+}
+
+// #############################################################
+// # 15. ZOOM TRAVADO NO CELULAR
+// #############################################################
+
+// O Safari do iPhone ignora `user-scalable=no` e `maximum-scale` da meta
+// viewport desde o iOS 10, e o touch-action do CSS não segura a pinça na
+// página inteira. O que ele respeita são os eventos de gesto próprios
+// dele: cancelar o gesturestart impede a ampliação antes de começar.
+//
+// Nos demais navegadores a meta viewport e o touch-action já resolvem —
+// aqui não há listener de touchmove justamente para não deixar a
+// rolagem da página presa a um handler não-passivo.
+function travarZoom() {
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach((evento) => {
+        document.addEventListener(
+            evento,
+            (e) => {
+                e.preventDefault();
+            },
+            { passive: false },
+        );
     });
 }
